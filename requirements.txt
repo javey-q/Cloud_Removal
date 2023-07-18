@@ -1,0 +1,7 @@
+accelerate
+pytorch
+opencv-python
+tqdm
+wandb
+timm
+scipy

@@ -1,0 +1,84 @@
+Project: Rsipac_CR
+Experiment:
+  name: &name GLF_CR_Base
+  checkpoint_dir: !!python/object/apply:os.path.join ["./experiments", *name, "checkpoints"]
+  result_dir: !!python/object/apply:os.path.join ["./experiments", *name, "results"]
+  log_dir:
+  resume:
+#    resume_epoch: 50
+#    resume_ckpt: checkpoint_best.pth
+#    resume_wandb: 2kmkt2y2
+
+manual_seed: 42
+Accelerator:
+  gradient_accumulation_steps: 1
+
+
+datasets:
+  train:
+    name: Real_CR
+    phase: train
+    root:  ../Dataset/Rsipac/train_256
+    meta_info: ../Dataset/Rsipac/train_256/train_val_list.csv
+    io_backend:
+      type: disk
+
+    # image settings
+    use_cloudmask: false
+    cloud_threshold: 0.2
+    random_crop: true
+    base_size: 256
+    crop_size: 256
+
+    # dataloader
+    batch_size: 1
+    use_shuffle: true
+
+  val:
+    name: Real_CR
+    phase: val
+    root: ../Dataset/Rsipac/train_256
+    meta_info: ../Dataset/Rsipac/train_256/train_val_list.csv
+    io_backend:
+      type: disk
+
+    # image settings
+    use_cloudmask: false
+    cloud_threshold: 0.2
+    random_crop: true
+    base_size: 256
+    crop_size: 256
+    # dataloader
+    batch_size: 1
+
+#  val_2:
+
+network_g:
+  name: GLF_CR_Net
+  fig_size: 256
+  opt_channel: 3
+  sar_channel: 2
+  RDB_number: 5
+  Conv_layers: 5
+  Out_channels: 48
+
+
+train:
+  epochs: 100
+  optimizer_g:
+    type: AdamW
+    args:
+      lr: !!float 1e-4
+      weight_decay: 0.
+      betas: [0.9, 0.9]
+  scheduler:
+    type: TrueCosineAnnealingLR
+    args:
+      T_max: 100  # step
+      eta_min: !!float 1e-7
+
+save_epoch_freq: 10
+log_step_freq: 100
+visual_step_freq: 1000
+valid_visual_step_freq: 1000
+
