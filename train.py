@@ -131,7 +131,7 @@ def main():
     # Todo
     # model = get_model(cfg['model'])
 
-    train_eval = Generic_train_test(opt, net, optimizer, scheduler, train_loader, val_loaders, datasets_name, metrics)
+    train_eval = Generic_train_test(opt, accelerator, net, optimizer, scheduler, train_loader, val_loaders, datasets_name, metrics)
     train_eval.train(accelerator, run, start_epoch, opt['train']['epochs'])
 
 

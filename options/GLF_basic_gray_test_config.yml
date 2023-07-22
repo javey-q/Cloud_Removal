@@ -1,7 +1,7 @@
 Project: Rsipac_CR
 Experiment:
-  name: &name test
-  checkpoint:  !!python/object/apply:os.path.join ["./experiments", *name, "checkpoints", "checkpoint_last.pth"]
+  name: &name GLF_CR_Base
+  checkpoint:  !!python/object/apply:os.path.join ["./experiments", *name, "checkpoints", "checkpoint_best.pth"]
   target_size: 256
 
 infer_dir:  !!python/object/apply:os.path.join ["./infer", *name, 'pred']
@@ -15,15 +15,17 @@ datasets:
       type: disk
     use_cloudmask: false
     # image settings
-    base_size: 192
+    base_size: 256
+    use_gray: true
     # dataloader
     batch_size: 1
 
 network:
   name: GLF_CR_Net
-  fig_size: 192
+  fig_size: 256
   opt_channel: 3
   sar_channel: 2
   RDB_number: 5
   Conv_layers: 5
   Out_channels: 48
+  use_gray: true

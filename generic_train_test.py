@@ -14,14 +14,15 @@ from utils.metrics import *
 Train_test = False
 
 class Generic_train_test():
-	def __init__(self, opts, net, optimizer, scheduler, train_loader, val_loaders, datasets_name, metrics):
+	def __init__(self, opts, accelerator, net, optimizer, scheduler, train_loader, val_loaders, datasets_name, metrics):
 		self.opts = opts
 		self.net = net
 		self.optimizer = optimizer
 		self.scheduler = scheduler
 
 		self.l1_loss = torch.nn.L1Loss()
-		# self.ssim = torch.nn.L1Loss()
+		self.ms_ssim = MS_SSIM(accelerator)
+		# self.ssim = SSIM()
 
 		self.train_loader = train_loader
 		self.val_loaders = val_loaders
@@ -35,7 +36,7 @@ class Generic_train_test():
 		# dirs
 		self.checkpoint_dir = opts['Experiment']['checkpoint_dir']
 		self.result_dir = opts['Experiment']['result_dir']
-		self.use_gray = opts['network_g']['use_gray']
+		self.use_gray = opts['network_g']['use_gray'] if 'use_gray' in opts['network_g'] else False
 		self.lambda_gray = 0.5
 
 
@@ -85,7 +86,8 @@ class Generic_train_test():
 						else:
 							pred = self.net(image, sar)
 						loss_l1 = self.l1_loss(pred, label)
-						loss_ssim = 1 - SSIM(pred, label)
+						loss_ssim = 1 - self.ms_ssim(pred, label)
+						# loss_ssim = 1 - SSIM(pred, label)
 
 						if self.use_gray:
 							loss_all = loss_l1 + loss_ssim + self.lambda_gray * loss_l1_gray
@@ -98,7 +100,7 @@ class Generic_train_test():
 						# self.scheduler.step()
 
 						# metrics
-						ssim = (1-loss_ssim).item() # ?
+						ssim = SSIM(pred, label).item() # ?
 						psnr = PSNR(pred, label)
 
 						# loss_v = torch.mean(accelerator.gather_for_metrics(loss)).item()
@@ -188,13 +190,17 @@ class Generic_train_test():
 						pred = self.net(image, sar)
 
 					# Gathers tensor and potentially drops duplicates in the last batch
-					all_pred, all_label, all_pred_gray, all_label_gray = accelerator.gather_for_metrics((pred, label, pred_gray, label_gray))
+					all_pred, all_label = accelerator.gather_for_metrics((pred, label))
+					if self.use_gray:
+						all_pred_gray, all_label_gray = accelerator.gather_for_metrics((pred_gray, label_gray))
+
 
 					loss_l1 = self.l1_loss(all_pred, all_label)
 					if self.use_gray:
 						l1_loss_gray = self.l1_loss(all_pred_gray, all_label_gray)
 					# metrics
 					ssim = SSIM(all_pred, all_label).item()  # ?
+					# ssim = self.ssim(all_pred, all_label).item()
 					psnr = PSNR(all_pred, all_label)
 
 					m_l1_loss.update(loss_l1.item() , image.size(0))  # average ?

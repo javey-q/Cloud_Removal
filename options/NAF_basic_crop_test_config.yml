@@ -1,0 +1,40 @@
+Project: Rsipac_CR
+Experiment:
+  name: &name NAF_CR_Base_crop
+  checkpoint:  !!python/object/apply:os.path.join ["./experiments", *name, "checkpoints", "checkpoint_best.pth"]
+  target_size: 256
+
+infer_dir:  !!python/object/apply:os.path.join ["./infer", *name, 'pred']
+
+datasets:
+  test:
+    name: Test_CR
+    phase: test
+    root: ../Dataset/Rsipac/test_256/
+    io_backend:
+      type: disk
+    use_cloudmask: false
+    # image settings
+    base_size: 256
+    # dataloader
+    batch_size: 1
+
+network:
+  name: NAF_CR_Net
+  optical_channel: 3
+  sar_channel: 2
+  output_channel: 3
+
+  optical_width: 64
+  optical_dw_expand: 2
+  optical_ffn_expand: 2
+  optical_enc_blks: [1, 1, 1, 28]
+  optical_middle_blk_num: 1
+  optical_dec_blks: [1, 1, 1, 1]
+
+  sar_width: 32
+  sar_dw_expand: 1
+  sar_ffn_expand: 2
+  sar_enc_blks: [1, 1, 1, 28]
+  sar_middle_blk_num: 1
+  sar_dec_blks: [1, 1, 1, 1]

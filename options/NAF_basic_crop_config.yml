@@ -1,6 +1,6 @@
 Project: Rsipac_CR
 Experiment:
-  name: &name NAF_CR_Small_crop
+  name: &name NAF_CR_Base_crop_ms
   checkpoint_dir: !!python/object/apply:os.path.join ["./experiments", *name, "checkpoints"]
   result_dir: !!python/object/apply:os.path.join ["./experiments", *name, "results"]
   log_dir:
@@ -31,7 +31,7 @@ datasets:
     crop_size: 192
 
     # dataloader
-    batch_size: 8
+    batch_size: 4
     use_shuffle: true
 
   val:
@@ -52,30 +52,29 @@ datasets:
     batch_size: 4
 
 #  val_2:
-
 network_g:
   name: NAF_CR_Net
   optical_channel: 3
   sar_channel: 2
   output_channel: 3
 
-  optical_width: 48 # 64
+  optical_width: 64 # 64
   optical_dw_expand: 2
   optical_ffn_expand: 2
-  optical_enc_blks: [1, 1, 1, 16] # 28
+  optical_enc_blks: [1, 1, 1, 28] # 28
   optical_middle_blk_num: 1
   optical_dec_blks: [1, 1, 1, 1]
 
-  sar_width: 24 # 32
+  sar_width: 32 # 32
   sar_dw_expand: 1
   sar_ffn_expand: 2
-  sar_enc_blks: [1, 1, 1, 16] # 28
+  sar_enc_blks: [1, 1, 1, 28] # 28
   sar_middle_blk_num: 1
   sar_dec_blks: [1, 1, 1, 1]
 
 
 train:
-  epochs: 50
+  epochs: 100
   optimizer_g:
     type: AdamW
     args:
@@ -85,7 +84,7 @@ train:
   scheduler:
     type: TrueCosineAnnealingLR
     args:
-      T_max: 50  # step
+      T_max: 100  # step
       eta_min: !!float 1e-7
 
 save_epoch_freq: 10

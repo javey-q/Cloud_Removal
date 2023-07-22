@@ -56,6 +56,7 @@ def main():
     batch_time = AverageMeter('Time', ':6.3f', Summary.NONE)
     end = time.time()
     target_size = opt['Experiment']['target_size']
+    use_gray = opt['network']['use_gray'] if 'use_gray' in opt['network'] else False
     with torch.no_grad():
         with tqdm(total=len(test_loader),
                   desc=f'Test on {dataset_name}', unit='batch') as test_pbar:
@@ -64,9 +65,13 @@ def main():
                 sar = batch['sar'].to(device)
                 img_name = batch['file_name']
 
-                result = net(image, sar).detach().cpu()
+                if use_gray:
+                    pred, pred_gray = net(image, sar)
+                    pred = pred.detach().cpu()
+                else:
+                    pred, pred_gray = net(image, sar).detach().cpu()
 
-                save_img = tensor2img([result], rgb2bgr=True)
+                save_img = tensor2img([pred], rgb2bgr=True)
                 save_img_path = os.path.join(opt['infer_dir'], img_name[0])
                 # save_img = cv2.resize(save_img, (target_size, target_size))
                 imwrite(save_img, save_img_path)
