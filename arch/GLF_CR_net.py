@@ -407,9 +407,9 @@ class RDN_residual_CR(nn.Module):
         sar_channel = opt['sar_channel']
 
         self.use_gray = opt['use_gray']
-        self.G0 = 96
         kSize = 3
 
+        self.G0 = opt['Initial_channel']
         self.D = opt['RDB_number']
         self.C =  opt['Conv_layers']
         self.G = opt['Out_channels']

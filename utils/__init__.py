@@ -35,7 +35,6 @@ def get_scheduler(scheduler_cfg, optimizer):
     elif scheduler_type == 'CosineAnnealingRestartLR':
         scheduler = lr_scheduler.CosineAnnealingRestartLR(optimizer, **kwargs)
     elif scheduler_type == 'TrueCosineAnnealingLR':
-        print('cosineannealingLR',kwargs)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, **kwargs)
     elif scheduler_type == 'LinearLR':
         scheduler = lr_scheduler.LinearLR(optimizer, **kwargs)

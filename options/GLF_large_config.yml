@@ -1,14 +1,13 @@
 Project: Rsipac_CR
 Experiment:
-  name: &name NAF_CR_Base_crop_ms
+  name: &name GLF_CR_Large
   checkpoint_dir: !!python/object/apply:os.path.join ["./experiments", *name, "checkpoints"]
   result_dir: !!python/object/apply:os.path.join ["./experiments", *name, "results"]
   log_dir:
   resume:
 #    resume_epoch: 50
-    resume_ckpt: checkpoint_epoch_100.pth
-    resume_wandb: 16q8xi38
-    resume_addition: true  # modification max epoch
+#    resume_ckpt: checkpoint_best.pth
+#    resume_wandb: 2kmkt2y2
 
 manual_seed: 42
 Accelerator:
@@ -29,10 +28,11 @@ datasets:
     cloud_threshold: 0.2
     random_crop: true
     base_size: 256
-    crop_size: 192
+    crop_size: 256
+    use_gray: &use_gray false
 
     # dataloader
-    batch_size: 2
+    batch_size: 1
     use_shuffle: true
 
   val:
@@ -46,51 +46,44 @@ datasets:
     # image settings
     use_cloudmask: false
     cloud_threshold: 0.2
-    random_crop: false
+    random_crop: true
     base_size: 256
     crop_size: 256
+    use_gray: *use_gray
+
     # dataloader
-    batch_size: 2
+    batch_size: 1
 
 #  val_2:
+
 network_g:
-  name: NAF_CR_Net
-  optical_channel: 3
+  name: GLF_CR_Net
+  fig_size: 256
+  opt_channel: 3
   sar_channel: 2
-  output_channel: 3
-
-  optical_width: 64 # 64
-  optical_dw_expand: 2
-  optical_ffn_expand: 2
-  optical_enc_blks: [1, 1, 1, 28] # 28
-  optical_middle_blk_num: 1
-  optical_dec_blks: [1, 1, 1, 1]
-
-  sar_width: 32 # 32
-  sar_dw_expand: 1
-  sar_ffn_expand: 2
-  sar_enc_blks: [1, 1, 1, 28] # 28
-  sar_middle_blk_num: 1
-  sar_dec_blks: [1, 1, 1, 1]
-
+  RDB_number: 6
+  Conv_layers: 6
+  Initial_channel: 128
+  Out_channels: 64
+  use_gray: *use_gray
 
 train:
-  epochs: 150
+  epochs: 100
   optimizer_g:
     type: AdamW
     args:
-      lr: !!float 1e-6
+      lr: !!float 1e-4
       weight_decay: 0.
       betas: [0.9, 0.9]
   scheduler:
     type: TrueCosineAnnealingLR
     args:
-      T_max: 150  # step
+      T_max: 100  # step
       eta_min: !!float 1e-7
   loss_funs:
     pixel: l1
-    ssim: ms_ssim
-  loss_weights: [1, 1]
+    ssim: ssim
+  loss_weights: [1, 2]
 
 save_epoch_freq: 10
 log_step_freq: 100

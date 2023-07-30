@@ -23,6 +23,8 @@ class Generic_train_test():
 		self.l1_loss = torch.nn.L1Loss()
 		self.ms_ssim = MS_SSIM(accelerator)
 		# self.ssim = SSIM()
+		self.loss_funs = opts['train']['loss_funs']
+		self.loss_weights = opts['train']['loss_weights']
 
 		self.train_loader = train_loader
 		self.val_loaders = val_loaders
@@ -32,6 +34,7 @@ class Generic_train_test():
 		self.best_loss = metrics['val_loss']
 		self.best_ssim = metrics['val_ssim']
 		self.best_psnr = metrics['val_psnr']
+
 
 		# dirs
 		self.checkpoint_dir = opts['Experiment']['checkpoint_dir']
@@ -80,19 +83,23 @@ class Generic_train_test():
 						if self.use_gray:
 							label_gray = batch['gray']
 						self.optimizer.zero_grad()
+						loss_all = 0
 						if self.use_gray:
 							pred, pred_gray = self.net(image, sar)
 							loss_l1_gray = self.l1_loss(pred_gray, label_gray)
+							loss_all += loss_l1_gray * self.lambda_gray
 						else:
 							pred = self.net(image, sar)
-						loss_l1 = self.l1_loss(pred, label)
-						loss_ssim = 1 - self.ms_ssim(pred, label)
-						# loss_ssim = 1 - SSIM(pred, label)
 
-						if self.use_gray:
-							loss_all = loss_l1 + loss_ssim + self.lambda_gray * loss_l1_gray
-						else:
-							loss_all = loss_l1 + loss_ssim
+						if 'pixel' in self.loss_funs.keys():
+							loss_l1 = self.l1_loss(pred, label)
+							loss_all += loss_l1 * self.loss_weights[0]
+						if 'ssim' in self.loss_funs.keys():
+							if self.loss_funs['ssim'] == 'ms_ssim':
+								loss_ssim = 1 - self.ms_ssim(pred, label)
+							else:
+								loss_ssim = 1 - SSIM(pred, label)
+							loss_all += loss_ssim * self.loss_weights[1]
 
 						loss_all.backward()
 

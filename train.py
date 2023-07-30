@@ -104,19 +104,39 @@ def main():
         ckpt_path = os.path.join(ckpt_dir, resume_opt['resume_ckpt']) if 'resume_ckpt' in  resume_opt and resume_opt['resume_ckpt'] \
                                                                             else get_latest_run(ckpt_dir)
         assert os.path.isfile(ckpt_path), 'ERROR: --resume checkpoint does not exist'
-        logger.info(f'Resuming training from {ckpt_path}')
-        checkpoint = torch.load(ckpt_path)
+        accelerator.print(f'Resuming training from {ckpt_path}')
 
-        net.load_state_dict(checkpoint['model'])
-        optimizer.load_state_dict(checkpoint['optimizer'])
-        scheduler.load_state_dict(checkpoint['lr_scheduler'])
+        start_epoch = torch.tensor([accelerator.process_index]).to(accelerator.device)
+        metrics_ssim = torch.tensor([accelerator.process_index]).to(accelerator.device)
+        metrics = {'val_loss': np.inf, 'val_ssim': 0, 'val_psnr': 0}
+        if accelerator.is_local_main_process:
+            checkpoint = torch.load(ckpt_path)
+            net.load_state_dict(checkpoint['model'])
+            start_epoch = resume_opt['resume_epoch'] if 'resume_epoch' in  resume_opt and resume_opt['resume_epoch'] \
+                else checkpoint['epoch']
+            if 'resume_addition' in  resume_opt and resume_opt['resume_addition']:
+                # modification max epoch
+                scheduler.last_epoch = start_epoch
+            else:
+                optimizer.load_state_dict(checkpoint['optimizer'])
+                scheduler.load_state_dict(checkpoint['lr_scheduler'])
+            scheduler.last_epoch = start_epoch
+            metrics_ssim = checkpoint['metrics']['val_ssim']
+            metrics_ssim = torch.tensor(metrics_ssim, dtype=torch.float32).to(accelerator.device)
+            start_epoch = torch.tensor(start_epoch, dtype=torch.int8).to(accelerator.device)
 
-        start_epoch = resume_opt['resume_epoch'] if 'resume_epoch' in  resume_opt and resume_opt['resume_epoch'] \
-            else checkpoint['epoch']
+        accelerate.utils.broadcast(metrics_ssim, 0)
+        accelerate.utils.broadcast(start_epoch, 0)
+
+        start_epoch = int(start_epoch)
+        metrics_ssim = float(metrics_ssim)
+        metrics['val_ssim'] = metrics_ssim
+        accelerator.print(f'Resume epoch is: {start_epoch} resume metrics is:')
+        accelerator.print(metrics)
+
         if accelerator.is_local_main_process:
             wandb.init(project=opt['Project'], config=opt,
                              resume=True, id=resume_opt['resume_wandb'])
-        metrics = checkpoint['metrics']
     else:
         start_epoch = 0
         if accelerator.is_local_main_process:

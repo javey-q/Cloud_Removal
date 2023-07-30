@@ -29,7 +29,7 @@ datasets:
     random_crop: true
     base_size: 256
     crop_size: 256
-    use_gray: true
+    use_gray: &use_gray false
 
     # dataloader
     batch_size: 1
@@ -49,7 +49,7 @@ datasets:
     random_crop: true
     base_size: 256
     crop_size: 256
-    use_gray: true
+    use_gray: *use_gray
     # dataloader
     batch_size: 1
 
@@ -62,8 +62,9 @@ network_g:
   sar_channel: 2
   RDB_number: 5
   Conv_layers: 5
+  Initial_channel: 96
   Out_channels: 48
-  use_gray: true
+  use_gray: *use_gray
 
 train:
   epochs: 100
@@ -78,6 +79,10 @@ train:
     args:
       T_max: 100  # step
       eta_min: !!float 1e-7
+  loss_funs:
+    pixel: l1
+    ssim: ssim
+  loss_weights: [ 1, 1 ]
 
 save_epoch_freq: 10
 log_step_freq: 100
