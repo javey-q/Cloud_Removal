@@ -106,31 +106,33 @@ def main():
         assert os.path.isfile(ckpt_path), 'ERROR: --resume checkpoint does not exist'
         accelerator.print(f'Resuming training from {ckpt_path}')
 
-        start_epoch = torch.tensor([accelerator.process_index]).to(accelerator.device)
-        metrics_ssim = torch.tensor([accelerator.process_index]).to(accelerator.device)
-        metrics = {'val_loss': np.inf, 'val_ssim': 0, 'val_psnr': 0}
-        if accelerator.is_local_main_process:
-            checkpoint = torch.load(ckpt_path)
-            net.load_state_dict(checkpoint['model'])
-            start_epoch = resume_opt['resume_epoch'] if 'resume_epoch' in  resume_opt and resume_opt['resume_epoch'] \
-                else checkpoint['epoch']
-            if 'resume_addition' in  resume_opt and resume_opt['resume_addition']:
-                # modification max epoch
-                scheduler.last_epoch = start_epoch
-            else:
-                optimizer.load_state_dict(checkpoint['optimizer'])
-                scheduler.load_state_dict(checkpoint['lr_scheduler'])
+        # start_epoch = torch.tensor([accelerator.process_index]).to(accelerator.device)
+        # metrics_ssim = torch.tensor([accelerator.process_index]).to(accelerator.device)
+        # metrics = {'val_loss': np.inf, 'val_ssim': 0, 'val_psnr': 0}
+        # if accelerator.is_local_main_process:
+        checkpoint = torch.load(ckpt_path)
+        net.load_state_dict(checkpoint['model'])
+        start_epoch = resume_opt['resume_epoch'] if 'resume_epoch' in  resume_opt and resume_opt['resume_epoch'] \
+            else checkpoint['epoch']
+        if 'resume_addition' in  resume_opt and resume_opt['resume_addition']:
+            # modification max epoch
             scheduler.last_epoch = start_epoch
-            metrics_ssim = checkpoint['metrics']['val_ssim']
-            metrics_ssim = torch.tensor(metrics_ssim, dtype=torch.float32).to(accelerator.device)
-            start_epoch = torch.tensor(start_epoch, dtype=torch.int8).to(accelerator.device)
+        else:
+            optimizer.load_state_dict(checkpoint['optimizer'])
+            scheduler.load_state_dict(checkpoint['lr_scheduler'])
+        metrics= checkpoint['metrics']
 
-        accelerate.utils.broadcast(metrics_ssim, 0)
-        accelerate.utils.broadcast(start_epoch, 0)
+            # metrics_ssim = checkpoint['metrics']['val_ssim']
+            # metrics_ssim = torch.tensor(metrics_ssim, dtype=torch.float32).to(accelerator.device)
+            # start_epoch = torch.tensor(start_epoch, dtype=torch.int8).to(accelerator.device)
 
-        start_epoch = int(start_epoch)
-        metrics_ssim = float(metrics_ssim)
-        metrics['val_ssim'] = metrics_ssim
+        # accelerate.utils.broadcast(metrics_ssim, 0)
+        # accelerate.utils.broadcast(start_epoch, 0)
+        #
+        # start_epoch = int(start_epoch)
+        # metrics_ssim = float(metrics_ssim)
+        # metrics['val_ssim'] = metrics_ssim
+
         accelerator.print(f'Resume epoch is: {start_epoch} resume metrics is:')
         accelerator.print(metrics)
 

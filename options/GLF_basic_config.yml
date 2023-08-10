@@ -1,14 +1,14 @@
 Project: Rsipac_CR
 Experiment:
-  name: &name GLF_CR_Base_gray_ms
+  name: &name GLF_CR_Base_2:1
   checkpoint_dir: !!python/object/apply:os.path.join ["./experiments", *name, "checkpoints"]
   result_dir: !!python/object/apply:os.path.join ["./experiments", *name, "results"]
   log_dir:
   resume:
 #    resume_epoch: 50
-    resume_ckpt: checkpoint_best.pth
-    resume_wandb: f7qm9b1n
-    resume_addition: true
+#    resume_ckpt: checkpoint_best.pth
+#    resume_wandb: f7qm9b1n
+#    resume_addition: true
 
 manual_seed: 42
 Accelerator:
@@ -30,7 +30,7 @@ datasets:
     random_crop: true
     base_size: 256
     crop_size: 256
-    use_gray: &use_gray true
+    use_gray: &use_gray false
 
     # dataloader
     batch_size: 2
@@ -72,7 +72,7 @@ train:
   optimizer_g:
     type: AdamW
     args:
-      lr: !!float 1e-5
+      lr: !!float 1e-4
       weight_decay: 0.
       betas: [0.9, 0.9]
   scheduler:
@@ -83,7 +83,7 @@ train:
   loss_funs:
     pixel: l1
     ssim: ssim
-  loss_weights: [ 1, 1 ]
+  loss_weights: [1, 2]
 
 save_epoch_freq: 10
 log_step_freq: 100

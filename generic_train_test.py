@@ -35,7 +35,6 @@ class Generic_train_test():
 		self.best_ssim = metrics['val_ssim']
 		self.best_psnr = metrics['val_psnr']
 
-
 		# dirs
 		self.checkpoint_dir = opts['Experiment']['checkpoint_dir']
 		self.result_dir = opts['Experiment']['result_dir']
@@ -91,7 +90,7 @@ class Generic_train_test():
 						else:
 							pred = self.net(image, sar)
 
-						if 'pixel' in self.loss_funs.keys():
+						if 'pixel' in self.loss_funs.keys() and epoch<=80:
 							loss_l1 = self.l1_loss(pred, label)
 							loss_all += loss_l1 * self.loss_weights[0]
 						if 'ssim' in self.loss_funs.keys():

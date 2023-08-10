@@ -3,13 +3,14 @@ import cv2
 import csv
 from sklearn import model_selection
 
-phase = 'train'
-data_root = r"D:\Dataset\Rsipac\train"
-data_slice= r"D:\Dataset\Rsipac\train_256"
-data_csv = r"D:\Dataset\Rsipac\train_256\train_val_list.csv"
+phase = 'test'
+data_root = r"D:\Dataset\Rsipac\test"
+data_slice= r"D:\Dataset\Rsipac\test_256_0.5"
+data_csv = r"D:\Dataset\Rsipac\test_256_0.5\train_val_list.csv"
+
 
 slice_size = 256
-overlap_rate = 0
+overlap_rate = 0.5
 
 if not os.path.exists(data_slice):
     if phase == 'train':
@@ -57,9 +58,9 @@ with open(data_csv, 'w', newline='') as file:
                     opt_clear_cut, _, _ = crop_image(opt_clear_img, x1, y1, slice_size)
 
                 output_name = f'{image_name.split(".")[0]}_{cnt_output}.png'
-                # if phase == 'train':
-                #     cv2.imwrite(os.path.join(data_slice, 'opt_clear', output_name), opt_clear_cut)
-                # cv2.imwrite(os.path.join(data_slice, 'opt_cloudy',output_name), opt_cloudy_cut)
+                if phase == 'train':
+                    cv2.imwrite(os.path.join(data_slice, 'opt_clear', output_name), opt_clear_cut)
+                cv2.imwrite(os.path.join(data_slice, 'opt_cloudy',output_name), opt_cloudy_cut)
                 cv2.imwrite(os.path.join(data_slice, 'SAR', 'VV', output_name.replace('S2', 'S1')), SAR_VV_cut)
                 cv2.imwrite(os.path.join(data_slice, 'SAR', 'VH', output_name.replace('S2', 'S1')), SAR_VH_cut)
                 cnt_output += 1
@@ -71,7 +72,7 @@ with open(data_csv, 'w', newline='') as file:
                         data = [2, 'SAR', 'opt_clear', 'opt_cloudy', output_name]
                     writer.writerow(data)
 
-        assert  cnt_output == 4, f'{cnt_output}!=4'
+        assert  cnt_output == 16, f'{cnt_output}!=16'
 
 
 

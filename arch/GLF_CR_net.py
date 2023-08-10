@@ -470,7 +470,9 @@ class RDN_residual_CR(nn.Module):
             self.sar_fuse_1x1conv.append(nn.Conv2d(channels, channels, kernel_size=1))
 
         self.opt_distribute_1x1conv = nn.ModuleList() #gate for opt, distribution
-        for i in range(self.D):
+        for i in range(self.D-1):
+            self.opt_distribute_1x1conv.append(nn.Conv2d(channels, channels, kernel_size=1))
+        if self.use_gray:
             self.opt_distribute_1x1conv.append(nn.Conv2d(channels, channels, kernel_size=1))
 
         # Global Feature Fusion
