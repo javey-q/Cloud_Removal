@@ -21,6 +21,7 @@ class Generic_train_test():
 		self.scheduler = scheduler
 
 		self.l1_loss = torch.nn.L1Loss()
+		self.stop_l1 = opts['train']['stop_l1'] if 'stop_l1' in opts['train'] else opts['train']['epochs']
 		self.ms_ssim = MS_SSIM(accelerator)
 		# self.ssim = SSIM()
 		self.loss_funs = opts['train']['loss_funs']
