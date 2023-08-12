@@ -54,7 +54,7 @@ datasets:
     # dataloader
     batch_size: 4
 
-#  val_2:
+sar_trans: true
 network_g:
   name: NAF_Trans_Net
   img_channel: 2
@@ -82,7 +82,7 @@ train:
       eta_min: !!float 1e-7
   loss_funs:
     pixel: l1
-    ssim: ms_ssim
+    ssim: ssim
   loss_weights: [1, 2]
 
 save_epoch_freq: 10

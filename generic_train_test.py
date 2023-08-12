@@ -41,6 +41,8 @@ class Generic_train_test():
 		self.use_gray = opts['network_g']['use_gray'] if 'use_gray' in opts['network_g'] else False
 		self.lambda_gray = 0.5
 
+		self.sar_trans = opts['sar_trans'] if 'sar_trans' in opts else False
+
 
 	def decode_input(self, data):
 		return data
@@ -87,6 +89,8 @@ class Generic_train_test():
 							pred, pred_gray = self.net(image, sar)
 							loss_l1_gray = self.l1_loss(pred_gray, label_gray)
 							loss_all += loss_l1_gray * self.lambda_gray
+						elif self.sar_trans:
+							pred = self.net(sar)
 						else:
 							pred = self.net(image, sar)
 
@@ -192,6 +196,8 @@ class Generic_train_test():
 
 					if self.use_gray:
 						pred, pred_gray = self.net(image, sar)
+					elif self.sar_trans:
+						pred = self.net(sar)
 					else:
 						pred = self.net(image, sar)
 

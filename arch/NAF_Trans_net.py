@@ -150,7 +150,7 @@ class NAF_Trans_Net(nn.Module):
             x = decoder(x)
 
         x = self.ending(x)
-        x = x + inp
+        # x = x + inp
 
         return x[:, :, :H, :W]
 
@@ -162,7 +162,7 @@ class NAF_Trans_Net(nn.Module):
         return x
 
 class NAFNetLocal(Local_Base, NAF_Trans_Net):
-    def __init__(self, *args, train_size=(1, 3, 256, 256), fast_imp=False, **kwargs):
+    def __init__(self, *args, train_size=(1, 2, 256, 256), fast_imp=False, **kwargs):
         Local_Base.__init__(self)
         NAF_Trans_Net.__init__(self, *args, **kwargs)
 
