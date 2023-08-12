@@ -73,7 +73,7 @@ with open(data_csv, 'w', newline='') as file:
                         data = [2, 'SAR', 'opt_clear', 'opt_cloudy', output_name]
                     writer.writerow(data)
 
-        # assert  cnt_output == 16, f'{cnt_output}!=16'
+        assert  cnt_output == 9, f'{cnt_output}!=9'
 print(cnt_output)
 
 

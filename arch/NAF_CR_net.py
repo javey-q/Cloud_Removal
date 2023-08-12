@@ -16,9 +16,9 @@ import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from arch_util import LayerNorm2d, find_class_in_module
-from local_arch import  Local_Base_CR
-from sgfa import SGFA
+from .arch_util import LayerNorm2d, find_class_in_module
+from .local_arch import  Local_Base_CR
+from .sgfa import SGFA
 
 import argparse
 from utils.parser_option import parse_option
@@ -149,7 +149,7 @@ class BaselineBlock(nn.Module):
         return y + x * self.gamma
 
 
-class NAF_CR_Net(nn.Module):
+class NAF_Net(nn.Module):
 
     def __init__(self, block_type='Baseline', optical_channel=3, sar_channel=1, output_channel=3, optical_width=16, optical_middle_blk_num=1, optical_enc_blks=[],
                  optical_dec_blks=[], optical_dw_expand=1, optical_ffn_expand=2, sar_width=16, sar_middle_blk_num=1, sar_enc_blks=[],
@@ -178,7 +178,7 @@ class NAF_CR_Net(nn.Module):
         self.sar_downs = nn.ModuleList()
 
         block_name = block_type + 'Block'
-        block_cls = find_class_in_module(block_name, 'NAF_CR_net')
+        block_cls = find_class_in_module(block_name, 'arch.NAF_CR_net')
 
         # self.sgfa_module1 = SGFA(kernel_size=1, stride=1, rate=1, softmax_scale=10.0)
         # self.sgfa_module2 = SGFA(kernel_size=3, stride=1, rate=2, softmax_scale=10.0)
@@ -320,10 +320,10 @@ class NAF_CR_Net(nn.Module):
         x = F.pad(x, (0, mod_pad_w, 0, mod_pad_h))
         return x
 
-class NAF_Local_CR(Local_Base_CR, NAF_CR_Net):
+class NAF_Local_CR(Local_Base_CR, NAF_Net):
     def __init__(self, *args, train_size=(1, 3, 256, 256), sar_size=(1, 2, 256, 256), mask_size=(1, 1, 256, 256), fast_imp=False, **kwargs):
         Local_Base_CR.__init__(self)
-        NAF_CR_Net.__init__(self, *args, **kwargs)
+        NAF_Net.__init__(self, *args, **kwargs)
 
         N, C, H, W = train_size
         base_size = (int(H * 1.5), int(W * 1.5))

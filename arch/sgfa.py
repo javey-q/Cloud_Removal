@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from arch_util import extract_patches,extract_image_patches
+from .arch_util import extract_patches,extract_image_patches
 
 def reduce_mean(x, axis=None, keepdim=False):
     if not axis:
