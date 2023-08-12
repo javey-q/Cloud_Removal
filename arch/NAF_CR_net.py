@@ -17,7 +17,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from .arch_util import LayerNorm2d
-from .local_arch import Local_Base,Local_Base_CR
+from .local_arch import Local_Base, Local_Base_CR
 from .sgfa import SGFA
 
 class BaselineBlock(nn.Module):

@@ -10,10 +10,12 @@ import torch
 import argparse
 import cv2
 from utils.parser_option import parse_option
+from data.transforms import paired_random_crop, augment
 
 class Real_CR_Dataset(Dataset):
     def __init__(self, opt):
-        super().__init__()
+        super(Real_CR_Dataset, self).__init__()
+
         self.opt = opt
 
         self.root = opt['root']
@@ -24,6 +26,8 @@ class Real_CR_Dataset(Dataset):
         self.random_crop = opt['random_crop'] if 'random_crop' in opt else False
         self.use_cloudmask =  opt['use_cloudmask'] if 'use_cloudmask' in opt else False
         self.use_gray =  opt['use_gray'] if 'use_gray' in opt else False
+        self.use_flip =  opt['use_flip'] if 'use_flip' in opt else False
+        self.use_rot = opt['use_rot'] if 'use_rot' in opt else False
 
         self.base_size = opt['base_size']
         if self.random_crop:
@@ -57,57 +61,42 @@ class Real_CR_Dataset(Dataset):
         img_sar_VH = imfrombytes(sar_VH_bytes, flag='grayscale', float32=True)
         img_sar_VV = imfrombytes(sar_VV_bytes, flag='grayscale', float32=True)
         img_sar = np.concatenate((img_sar_VH, img_sar_VV), axis=2)
-
         img_clear = imfrombytes(clear_bytes, float32=True)
         img_cloudy = imfrombytes(cloudy_bytes, float32=True)
 
-        if self.use_cloudmask:
-            mask_path = None
-            mask_bytes = self.file_client.get(mask_path, 'mask')
-            img_mask = imfrombytes(mask_bytes, flag='grayscale', float32=True)
+        # if self.use_cloudmask:
+        #     mask_path = None
+        #     mask_bytes = self.file_client.get(mask_path, 'mask')
+        #     img_mask = imfrombytes(mask_bytes, flag='grayscale', float32=True)
 
-        if self.use_gray:
-            img_gray = cv2.cvtColor(img_clear, cv2.COLOR_BGR2GRAY)
-            img_gray = np.expand_dims(img_gray, axis=-1)
+        # random crop
+        if self.random_crop and self.base_size - self.crop_size > 0:
+            img_sar, img_clear, img_cloudy = paired_random_crop(self.opt, [img_sar, img_clear, img_cloudy], self.crop_size)
 
-        # Todo：augmentation for training
+        # flip, rotation
+        trans_sar, trans_clear, trans_cloudy = augment([img_sar, img_clear, img_cloudy], self.use_flip,
+                                  self.use_rot)
 
-        img_sar, img_clear, img_cloudy = img2tensor([img_sar, img_clear, img_cloudy],
+        tensor_sar, tensor_clear, tensor_cloudy = img2tensor([trans_sar, trans_clear, trans_cloudy],
                                     bgr2rgb=True,
                                     float32=True)
 
-        if self.use_cloudmask:
-            img_mask = img2tensor(img_mask, bgr2rgb=False, float32=True)
+        # if self.use_cloudmask:
+        #     tensor_mask = img2tensor(trans_mask, bgr2rgb=False, float32=True)
         if self.use_gray:
-            img_gray= img2tensor(img_gray, bgr2rgb=False, float32=True)
-
-        #  normalize
-        # mean
-        if self.random_crop and self.base_size - self.crop_size > 0:
-            if self.phase == 'train':
-                y = random.randint(0, np.maximum(0, self.base_size - self.crop_size))
-                x = random.randint(0, np.maximum(0, self.base_size - self.crop_size))
-            else:
-                y = np.maximum(0, self.base_size - self.crop_size)//2
-                x = np.maximum(0, self.base_size - self.crop_size)//2
-
-            img_sar = img_sar[...,y:y+self.crop_size,x:x+self.crop_size]
-            img_clear= img_clear[...,y:y+self.crop_size,x:x+self.crop_size]
-            img_cloudy = img_cloudy[...,y:y+self.crop_size,x:x+self.crop_size]
-            if self.use_cloudmask:
-                img_mask = img_mask[y:y+self.crop_size,x:x+self.crop_size]
-            if self.use_gray:
-                img_gray = img_gray[y:y + self.crop_size, x:x + self.crop_size]
+            trans_gray = cv2.cvtColor(trans_clear, cv2.COLOR_BGR2GRAY)
+            trans_gray = np.expand_dims(trans_gray, axis=-1)
+            tensor_gray= img2tensor(trans_gray, bgr2rgb=False, float32=True)
 
 
-        results = {'sar': img_sar,
-                   'opt_cloudy':img_cloudy,
-                   'opt_clear': img_clear,
+        results = {'sar': tensor_sar,
+                   'opt_cloudy':tensor_cloudy,
+                   'opt_clear': tensor_clear,
                    'file_name': fileID[4]}
-        if self.use_cloudmask:
-            results['cloud_mask'] = img_mask
+        # if self.use_cloudmask:
+        #     results['cloud_mask'] = tensor_mask
         if self.use_gray:
-            results['gray'] = img_gray
+            results['gray'] = tensor_gray
 
         return results
 
@@ -126,9 +115,9 @@ def parse_args():
 if __name__ == "__main__":
     opt = parse_args()
     opt_train = opt['datasets']['train']
-    opt_train['root'] = 'C:/Projects/Dataset/Rsipac/train'
-    opt_train['meta_info'] = 'C:/Projects/Dataset/Rsipac/train/train_val_list.csv'
-
+    opt_train['root'] = r'E:/Dataset/Rsipac/train'
+    opt_train['meta_info'] = 'E:/Dataset/Rsipac/train/train_val_list.csv'
+    opt_train['base_size'] = 512
     dataset = Real_CR_Dataset(opt_train)
     print(len(dataset))
     print(dataset.random_crop)

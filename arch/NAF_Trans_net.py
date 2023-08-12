@@ -15,6 +15,8 @@ Simple Baselines for Image Restoration
 
 import torch
 import torch.nn as nn
+from .local_arch import Local_Base
+from .arch_util import LayerNorm2d
 import torch.nn.functional as F
 
 class SimpleGate(nn.Module):
@@ -78,14 +80,14 @@ class NAFBlock(nn.Module):
         return y + x * self.gamma
 
 
-class NAFNet(nn.Module):
+class NAF_Trans_Net(nn.Module):
 
-    def __init__(self, img_channel=3, width=16, middle_blk_num=1, enc_blk_nums=[], dec_blk_nums=[]):
+    def __init__(self, img_channel=3, output_channel=3, width=16, dw_expand=2, ffn_expand=2, middle_blk_num=1, enc_blk_nums=[], dec_blk_nums=[]):
         super().__init__()
 
         self.intro = nn.Conv2d(in_channels=img_channel, out_channels=width, kernel_size=3, padding=1, stride=1, groups=1,
                               bias=True)
-        self.ending = nn.Conv2d(in_channels=width, out_channels=img_channel, kernel_size=3, padding=1, stride=1, groups=1,
+        self.ending = nn.Conv2d(in_channels=width, out_channels=output_channel, kernel_size=3, padding=1, stride=1, groups=1,
                               bias=True)
 
         self.encoders = nn.ModuleList()
@@ -98,7 +100,7 @@ class NAFNet(nn.Module):
         for num in enc_blk_nums:
             self.encoders.append(
                 nn.Sequential(
-                    *[NAFBlock(chan) for _ in range(num)]
+                    *[NAFBlock(chan, dw_expand, ffn_expand) for _ in range(num)]
                 )
             )
             self.downs.append(
@@ -108,7 +110,7 @@ class NAFNet(nn.Module):
 
         self.middle_blks = \
             nn.Sequential(
-                *[NAFBlock(chan) for _ in range(middle_blk_num)]
+                *[NAFBlock(chan, dw_expand, ffn_expand) for _ in range(middle_blk_num)]
             )
 
         for num in dec_blk_nums:
@@ -121,7 +123,7 @@ class NAFNet(nn.Module):
             chan = chan // 2
             self.decoders.append(
                 nn.Sequential(
-                    *[NAFBlock(chan) for _ in range(num)]
+                    *[NAFBlock(chan, dw_expand, ffn_expand) for _ in range(num)]
                 )
             )
 
@@ -159,10 +161,10 @@ class NAFNet(nn.Module):
         x = F.pad(x, (0, mod_pad_w, 0, mod_pad_h))
         return x
 
-class NAFNetLocal(Local_Base, NAFNet):
+class NAFNetLocal(Local_Base, NAF_Trans_Net):
     def __init__(self, *args, train_size=(1, 3, 256, 256), fast_imp=False, **kwargs):
         Local_Base.__init__(self)
-        NAFNet.__init__(self, *args, **kwargs)
+        NAF_Trans_Net.__init__(self, *args, **kwargs)
 
         N, C, H, W = train_size
         base_size = (int(H * 1.5), int(W * 1.5))
@@ -190,11 +192,14 @@ if __name__ == '__main__':
 
     inp_shape = (3, 256, 256)
 
-    from ptflops import get_model_complexity_info
+    input = torch.randn(inp_shape)
+    output = net(input)
 
-    macs, params = get_model_complexity_info(net, inp_shape, verbose=False, print_per_layer_stat=False)
-
-    params = float(params[:-3])
-    macs = float(macs[:-4])
-
-    print(macs, params)
+    # from ptflops import get_model_complexity_info
+    #
+    # macs, params = get_model_complexity_info(net, inp_shape, verbose=False, print_per_layer_stat=False)
+    #
+    # params = float(params[:-3])
+    # macs = float(macs[:-4])
+    #
+    # print(macs, params)
