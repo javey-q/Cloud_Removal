@@ -141,19 +141,18 @@ def main():
                              resume=True, id=resume_opt['resume_wandb'])
     elif 'finetune' in opt['Experiment'] and opt['Experiment']['finetune']:
         finetune_opt = opt['Experiment']['finetune']
-        ckpt_dir = opt['Experiment']['checkpoint_dir']
-        ckpt_path = os.path.join(ckpt_dir, finetune_opt['finetune_ckpt']) if 'finetune_ckpt' in finetune_opt and finetune_opt[
-            'finetune_ckpt'] \
-            else get_latest_run(ckpt_dir)
-        assert os.path.isfile(ckpt_path), 'ERROR: --resume checkpoint does not exist'
-        accelerator.print(f'Resuming training from {ckpt_path}')
-        checkpoint = torch.load(ckpt_path)
-        net.load_state_dict(checkpoint['model'])
-        metrics = checkpoint['metrics']
+        ckpt_path = finetune_opt['finetune_ckpt']
+        assert os.path.isfile(ckpt_path), 'ERROR: --finetune checkpoint does not exist'
+        accelerator.print(f'Finetune training from {ckpt_path}')
 
-        start_epoch = finetune_opt['resume_epoch'] if 'resume_epoch' in finetune_opt and finetune_opt['resume_epoch'] else 0
-        accelerator.print(f'Resume epoch is: {start_epoch} resume metrics is:')
-        accelerator.print(metrics)
+        if accelerator.is_local_main_process:
+            checkpoint = torch.load(ckpt_path)
+            net.load_state_dict(checkpoint['model'])
+            nowtime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            wandb.init(project=opt['Project'], config=opt,
+                       name=f'{opt["Experiment"]["name"]} {nowtime}')
+        start_epoch = 0
+        metrics = {'val_loss': np.inf, 'val_ssim': 0, 'val_psnr': 0}
     else:
         start_epoch = 0
         if accelerator.is_local_main_process:

@@ -10,7 +10,7 @@ Experiment:
 #    resume_wandb: 16q8xi38
 #    resume_addition: true  # modification max epoch
   finetune:
-    finetune_ckpt: checkpoint_epoch_best.pth
+    finetune_ckpt: ./experiments/NAF_CR_Middle_crop_2:1/checkpoints/checkpoint_best.pth
 
 manual_seed: 42
 Accelerator:
@@ -31,7 +31,7 @@ datasets:
     cloud_threshold: 0.2
     random_crop: true
     base_size: 512
-    crop_size: 448
+    crop_size: 256
     use_flip: true
     use_rot: true
 
@@ -59,7 +59,7 @@ datasets:
 #  val_2:
 network_g:
   name: NAF_CR_Net
-  block_type: NAF
+  block_type: Baseline
   optical_channel: 3
   sar_channel: 2
   output_channel: 3
