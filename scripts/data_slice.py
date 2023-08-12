@@ -4,10 +4,9 @@ import csv
 from sklearn import model_selection
 
 phase = 'test'
-data_root = r"D:\Dataset\Rsipac\test"
-data_slice= r"D:\Dataset\Rsipac\test_256_0.5"
-data_csv = r"D:\Dataset\Rsipac\test_256_0.5\train_val_list.csv"
-
+data_root = r"E:\Dataset\Rsipac\test"
+data_slice= r"E:\Dataset\Rsipac\test_256_0.5"
+data_csv = r"E:\Dataset\Rsipac\test_256_0.5\train_val_list.csv"
 
 slice_size = 256
 overlap_rate = 0.5
@@ -51,6 +50,8 @@ with open(data_csv, 'w', newline='') as file:
         cnt_output = 0
         for y1 in y1s:
             for x1 in x1s:
+                if x1 + slice_size > w or y1 + slice_size > h:
+                    continue
                 opt_cloudy_cut, _, _ = crop_image(opt_cloudy_img, x1, y1, slice_size)
                 SAR_VV_cut, _, _ = crop_image(SAR_VV_img, x1, y1, slice_size)
                 SAR_VH_cut, _, _ = crop_image(SAR_VH_img, x1, y1, slice_size)
@@ -72,8 +73,8 @@ with open(data_csv, 'w', newline='') as file:
                         data = [2, 'SAR', 'opt_clear', 'opt_cloudy', output_name]
                     writer.writerow(data)
 
-        assert  cnt_output == 16, f'{cnt_output}!=16'
-
+        # assert  cnt_output == 16, f'{cnt_output}!=16'
+print(cnt_output)
 
 
 

@@ -20,6 +20,20 @@ from torch.nn.modules.batchnorm import _BatchNorm
 #     # print('Cannot import dcn. Ignore this warning if dcn is not used. '
 #     #       'Otherwise install BasicSR with compiling dcn.')
 #
+import importlib
+def find_class_in_module(target_cls_name, module):
+    target_cls_name = target_cls_name.replace('_', '').lower()
+    clslib = importlib.import_module(module)
+    cls = None
+    for name, clsobj in clslib.__dict__.items():
+        if name.lower() == target_cls_name:
+            cls = clsobj
+
+    if cls is None:
+        print("In %s, there should be a class whose name matches %s in lowercase without underscore(_)" % (module, target_cls_name))
+        exit(0)
+
+    return cls
 
 @torch.no_grad()
 def default_init_weights(module_list, scale=1, bias_fill=0, **kwargs):

@@ -12,13 +12,82 @@ Simple Baselines for Image Restoration
   year={2022}
 }
 '''
-
+import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .arch_util import LayerNorm2d
-from .local_arch import Local_Base, Local_Base_CR
-from .sgfa import SGFA
+from arch_util import LayerNorm2d, find_class_in_module
+from local_arch import  Local_Base_CR
+from sgfa import SGFA
+
+import argparse
+from utils.parser_option import parse_option
+
+class SimpleGate(nn.Module):
+    def forward(self, x):
+        x1, x2 = x.chunk(2, dim=1)
+        return x1 * x2
+
+
+class NAFBlock(nn.Module):
+    def __init__(self, c, DW_Expand=2, FFN_Expand=2, drop_out_rate=0.):
+        super().__init__()
+        dw_channel = c * DW_Expand
+        self.conv1 = nn.Conv2d(in_channels=c, out_channels=dw_channel, kernel_size=1, padding=0, stride=1, groups=1,
+                               bias=True)
+        self.conv2 = nn.Conv2d(in_channels=dw_channel, out_channels=dw_channel, kernel_size=3, padding=1, stride=1,
+                               groups=dw_channel,
+                               bias=True)
+        self.conv3 = nn.Conv2d(in_channels=dw_channel // 2, out_channels=c, kernel_size=1, padding=0, stride=1,
+                               groups=1, bias=True)
+
+        # Simplified Channel Attention
+        self.sca = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            nn.Conv2d(in_channels=dw_channel // 2, out_channels=dw_channel // 2, kernel_size=1, padding=0, stride=1,
+                      groups=1, bias=True),
+        )
+
+        # SimpleGate
+        self.sg = SimpleGate()
+
+        ffn_channel = FFN_Expand * c
+        self.conv4 = nn.Conv2d(in_channels=c, out_channels=ffn_channel, kernel_size=1, padding=0, stride=1, groups=1,
+                               bias=True)
+        self.conv5 = nn.Conv2d(in_channels=ffn_channel // 2, out_channels=c, kernel_size=1, padding=0, stride=1,
+                               groups=1, bias=True)
+
+        self.norm1 = LayerNorm2d(c)
+        self.norm2 = LayerNorm2d(c)
+
+        self.dropout1 = nn.Dropout(drop_out_rate) if drop_out_rate > 0. else nn.Identity()
+        self.dropout2 = nn.Dropout(drop_out_rate) if drop_out_rate > 0. else nn.Identity()
+
+        self.beta = nn.Parameter(torch.zeros((1, c, 1, 1)), requires_grad=True)
+        self.gamma = nn.Parameter(torch.zeros((1, c, 1, 1)), requires_grad=True)
+
+    def forward(self, inp):
+        x = inp
+
+        x = self.norm1(x)
+
+        x = self.conv1(x)
+        x = self.conv2(x)
+        x = self.sg(x)
+        x = x * self.sca(x)
+        x = self.conv3(x)
+
+        x = self.dropout1(x)
+
+        y = inp + x * self.beta
+
+        x = self.conv4(self.norm2(y))
+        x = self.sg(x)
+        x = self.conv5(x)
+
+        x = self.dropout2(x)
+
+        return y + x * self.gamma
 
 class BaselineBlock(nn.Module):
     def __init__(self, c, DW_Expand=1, FFN_Expand=2, drop_out_rate=0.):
@@ -80,9 +149,9 @@ class BaselineBlock(nn.Module):
         return y + x * self.gamma
 
 
-class Baseline(nn.Module):
+class NAF_CR_Net(nn.Module):
 
-    def __init__(self, optical_channel=3, sar_channel=1, output_channel=3, optical_width=16, optical_middle_blk_num=1, optical_enc_blks=[],
+    def __init__(self, block_type='Baseline', optical_channel=3, sar_channel=1, output_channel=3, optical_width=16, optical_middle_blk_num=1, optical_enc_blks=[],
                  optical_dec_blks=[], optical_dw_expand=1, optical_ffn_expand=2, sar_width=16, sar_middle_blk_num=1, sar_enc_blks=[],
                  sar_dec_blks=[], sar_dw_expand=1, sar_ffn_expand=2):
         super().__init__()
@@ -108,6 +177,9 @@ class Baseline(nn.Module):
         self.sar_ups = nn.ModuleList()
         self.sar_downs = nn.ModuleList()
 
+        block_name = block_type + 'Block'
+        block_cls = find_class_in_module(block_name, 'NAF_CR_net')
+
         # self.sgfa_module1 = SGFA(kernel_size=1, stride=1, rate=1, softmax_scale=10.0)
         # self.sgfa_module2 = SGFA(kernel_size=3, stride=1, rate=2, softmax_scale=10.0)
         # self.sgfa_module3 = SGFA(kernel_size=3, stride=1, rate=2, softmax_scale=10.0)
@@ -125,7 +197,7 @@ class Baseline(nn.Module):
         for num in optical_enc_blks:
             self.optical_encoders.append(
                 nn.Sequential(
-                    *[BaselineBlock(optical_chan, optical_dw_expand, optical_ffn_expand) for _ in range(num)]
+                    *[block_cls(optical_chan, optical_dw_expand, optical_ffn_expand) for _ in range(num)]
                 )
             )
             self.optical_downs.append(
@@ -135,7 +207,7 @@ class Baseline(nn.Module):
 
         self.optical_middle_blks = \
             nn.Sequential(
-                *[BaselineBlock(optical_chan, optical_dw_expand, optical_ffn_expand) for _ in range(optical_middle_blk_num)]
+                *[block_cls(optical_chan, optical_dw_expand, optical_ffn_expand) for _ in range(optical_middle_blk_num)]
             )
 
         for num in optical_dec_blks:
@@ -148,7 +220,7 @@ class Baseline(nn.Module):
             optical_chan = optical_chan // 2
             self.optical_decoders.append(
                 nn.Sequential(
-                    *[BaselineBlock(optical_chan, optical_dw_expand, optical_ffn_expand) for _ in range(num)]
+                    *[block_cls(optical_chan, optical_dw_expand, optical_ffn_expand) for _ in range(num)]
                 )
             )
 
@@ -157,7 +229,7 @@ class Baseline(nn.Module):
         for num in sar_enc_blks:
             self.sar_encoders.append(
                 nn.Sequential(
-                    *[BaselineBlock(sar_chan, sar_dw_expand, sar_ffn_expand) for _ in range(num)]
+                    *[block_cls(sar_chan, sar_dw_expand, sar_ffn_expand) for _ in range(num)]
                 )
             )
             self.sar_downs.append(
@@ -167,7 +239,7 @@ class Baseline(nn.Module):
 
         self.sar_middle_blks = \
             nn.Sequential(
-                *[BaselineBlock(sar_chan, sar_dw_expand, sar_ffn_expand) for _ in range(sar_middle_blk_num)]
+                *[block_cls(sar_chan, sar_dw_expand, sar_ffn_expand) for _ in range(sar_middle_blk_num)]
             )
 
         for num in sar_dec_blks:
@@ -180,7 +252,7 @@ class Baseline(nn.Module):
             sar_chan = sar_chan // 2
             self.sar_decoders.append(
                 nn.Sequential(
-                    *[BaselineBlock(sar_chan, sar_dw_expand, sar_ffn_expand) for _ in range(num)]
+                    *[block_cls(sar_chan, sar_dw_expand, sar_ffn_expand) for _ in range(num)]
                 )
             )
 
@@ -248,10 +320,10 @@ class Baseline(nn.Module):
         x = F.pad(x, (0, mod_pad_w, 0, mod_pad_h))
         return x
 
-class BaselineLocalCR(Local_Base_CR, Baseline):
+class NAF_Local_CR(Local_Base_CR, NAF_CR_Net):
     def __init__(self, *args, train_size=(1, 3, 256, 256), sar_size=(1, 2, 256, 256), mask_size=(1, 1, 256, 256), fast_imp=False, **kwargs):
         Local_Base_CR.__init__(self)
-        Baseline.__init__(self, *args, **kwargs)
+        NAF_CR_Net.__init__(self, *args, **kwargs)
 
         N, C, H, W = train_size
         base_size = (int(H * 1.5), int(W * 1.5))
@@ -260,31 +332,29 @@ class BaselineLocalCR(Local_Base_CR, Baseline):
         with torch.no_grad():
             self.convert(base_size=base_size, train_size=train_size, sar_size=sar_size, mask_size=mask_size, fast_imp=fast_imp)
 
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--opt', type=str, default='../options/NAF_basic_crop_config.yml',
+                        help='the path of options file.')
+    args = parser.parse_args()
+    opt = parse_option(args.opt)
+
+    return opt
+
 if __name__ == '__main__':
-    optical_channel = 3
-    sar_channel = 2
-    output_channel = 3
-    width = 32
+    os.environ["CUDA_VISIBLE_DEVICES"] = '0'
+    opt = parse_args()
+    opt_network = opt['network_g']
+    opt_network['block_type'] = 'NAF'
+    opt_network.pop('name')
+    model = NAF_Local_CR(**opt_network).cuda()
 
-    dw_expand = 1
-    ffn_expand = 2
+    cloudy = torch.rand(1, 3, 256, 256).cuda()
+    cloudfree = torch.rand(1, 3, 256, 256).cuda()
+    s1_sar = torch.rand(1, 2, 256, 256).cuda()
 
-    # enc_blks = [2, 2, 4, 8]
-    # middle_blk_num = 12
-    # dec_blks = [2, 2, 2, 2]
-
-    enc_blks = [1, 1, 1, 28]
-    middle_blk_num = 1
-    dec_blks = [1, 1, 1, 1]
-
-    net = Baseline(optical_channel=optical_channel,sar_channel=sar_channel, output_channel=output_channel, width=width, middle_blk_num=middle_blk_num,
-                 enc_blk_nums=enc_blks, dec_blk_nums=dec_blks, dw_expand=dw_expand, ffn_expand=ffn_expand)
-
-    optical_shape = (1, 3, 256, 256)
-    sar_shape = (1, 2, 256, 256)
-
-    input = (torch.randn(optical_shape),torch.randn(sar_shape))
-    output = net(input)
+    output = model(cloudy, s1_sar)
+    print(output.shape)
 
     # from ptflops import get_model_complexity_info
     #

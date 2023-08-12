@@ -1,14 +1,14 @@
 Project: Rsipac_CR
 Experiment:
-  name: &name NAF_CR_Base_crop_ms
+  name: &name NAF_CR_Base_crop_2:1
   checkpoint_dir: !!python/object/apply:os.path.join ["./experiments", *name, "checkpoints"]
   result_dir: !!python/object/apply:os.path.join ["./experiments", *name, "results"]
   log_dir:
   resume:
 #    resume_epoch: 50
-    resume_ckpt: checkpoint_epoch_100.pth
-    resume_wandb: 16q8xi38
-    resume_addition: true  # modification max epoch
+#    resume_ckpt: checkpoint_epoch_100.pth
+#    resume_wandb: 16q8xi38
+#    resume_addition: true  # modification max epoch
 
 manual_seed: 42
 Accelerator:
@@ -19,8 +19,8 @@ datasets:
   train:
     name: Real_CR
     phase: train
-    root:  ../Dataset/Rsipac/train_256
-    meta_info: ../Dataset/Rsipac/train_256/train_val_list.csv
+    root:  ../Dataset/Rsipac/train
+    meta_info: ../Dataset/Rsipac/train/train_val_list.csv
     io_backend:
       type: disk
 
@@ -29,7 +29,7 @@ datasets:
     cloud_threshold: 0.2
     random_crop: true
     base_size: 256
-    crop_size: 192
+    crop_size: 256
 
     # dataloader
     batch_size: 2
@@ -38,8 +38,8 @@ datasets:
   val:
     name: Real_CR
     phase: val
-    root: ../Dataset/Rsipac/train_256
-    meta_info: ../Dataset/Rsipac/train_256/train_val_list.csv
+    root: ../Dataset/Rsipac/train
+    meta_info: ../Dataset/Rsipac/train/train_val_list.csv
     io_backend:
       type: disk
 
@@ -48,13 +48,14 @@ datasets:
     cloud_threshold: 0.2
     random_crop: false
     base_size: 256
-    crop_size: 256
+
     # dataloader
     batch_size: 2
 
 #  val_2:
 network_g:
   name: NAF_CR_Net
+  block_type: NAF
   optical_channel: 3
   sar_channel: 2
   output_channel: 3
@@ -66,8 +67,8 @@ network_g:
   optical_middle_blk_num: 1
   optical_dec_blks: [1, 1, 1, 1]
 
-  sar_width: 32 # 32
-  sar_dw_expand: 1
+  sar_width: 64 # 32
+  sar_dw_expand: 2
   sar_ffn_expand: 2
   sar_enc_blks: [1, 1, 1, 28] # 28
   sar_middle_blk_num: 1
@@ -79,7 +80,7 @@ train:
   optimizer_g:
     type: AdamW
     args:
-      lr: !!float 1e-6
+      lr: !!float 1e-4
       weight_decay: 0.
       betas: [0.9, 0.9]
   scheduler:
@@ -89,8 +90,8 @@ train:
       eta_min: !!float 1e-7
   loss_funs:
     pixel: l1
-    ssim: ms_ssim
-  loss_weights: [1, 1]
+    ssim: ssim
+  loss_weights: [1, 2]
 
 save_epoch_freq: 10
 log_step_freq: 100

@@ -22,6 +22,7 @@ class Real_CR_Dataset(Dataset):
         self.phase = opt['phase']
         self.file_client = None
         self.io_backend_opt = opt['io_backend']
+        self.repeat = opt['repeat'] if 'repeat' in opt else 1
 
         self.random_crop = opt['random_crop'] if 'random_crop' in opt else False
         self.use_cloudmask =  opt['use_cloudmask'] if 'use_cloudmask' in opt else False
@@ -43,7 +44,7 @@ class Real_CR_Dataset(Dataset):
 
     # TODO： augmentation for training
     def __getitem__(self, index):
-        fileID = self.filelist[index]
+        fileID = self.filelist[index % len(self.filelist)]
         sar_VH_path = os.path.join(self.root, fileID[1], 'VH', fileID[4].replace('S2', 'S1'))
         sar_VV_path = os.path.join(self.root, fileID[1], 'VV', fileID[4].replace('S2', 'S1'))
         clear_path = os.path.join(self.root, fileID[2], fileID[4])
@@ -101,7 +102,7 @@ class Real_CR_Dataset(Dataset):
         return results
 
     def __len__(self):
-        return len(self.filelist)
+        return len(self.filelist) * self.repeat
 
 
 def parse_args():
