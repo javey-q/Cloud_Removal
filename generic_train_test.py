@@ -95,7 +95,7 @@ class Generic_train_test():
 						else:
 							pred = self.net(image, sar)
 
-						if 'pixel' in self.loss_funs.keys() and epoch<=80:
+						if 'pixel' in self.loss_funs.keys() and epoch < self.stop_l1:
 							loss_l1 = self.l1_loss(pred, label)
 							loss_all += loss_l1 * self.loss_weights[0]
 						if 'ssim' in self.loss_funs.keys():
