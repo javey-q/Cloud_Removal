@@ -25,13 +25,14 @@ datasets:
     meta_info: ../Dataset/Rsipac/train/train_val_list.csv
     io_backend:
       type: disk
+    repeat: 2
 
     # image settings
     use_cloudmask: false
     cloud_threshold: 0.2
     random_crop: true
     base_size: 512
-    crop_size: 256
+    crop_size: 384
     use_flip: true
     use_rot: true
 

@@ -1,6 +1,6 @@
 Project: Rsipac_CR
 Experiment:
-  name: &name NAF_CR_Simple_aug_2:1
+  name: &name NAF_CR_Simple_refine_2:1
   checkpoint_dir: !!python/object/apply:os.path.join ["./experiments", *name, "checkpoints"]
   result_dir: !!python/object/apply:os.path.join ["./experiments", *name, "results"]
   log_dir:
@@ -19,29 +19,29 @@ datasets:
   train:
     name: Real_CR
     phase: train
-    root:  ../Dataset/Rsipac/train
-    meta_info: ../Dataset/Rsipac/train/train_val_list.csv
+    root:  ../Dataset/Rsipac/train_256
+    meta_info: ../Dataset/Rsipac/train_256/train_val_list.csv
     io_backend:
       type: disk
-    repeat: 4
+    repeat: 1
 
     # image settings
     use_cloudmask: false
     cloud_threshold: 0.2
     random_crop: true
-    base_size: 512
-    crop_size: 256
+    base_size: 256
+    crop_size: 192
     use_flip: true
     use_rot: true
 
     # dataloader
-    batch_size: 4
+    batch_size: 2
     use_shuffle: true
 
   val:
     name: Real_CR
     phase: val
-    root: ../Dataset/Rsipac/train
+    root: ../Dataset/Rsipac/train_256
     meta_info: ../Dataset/Rsipac/train_256/train_val_list.csv
     io_backend:
       type: disk
@@ -66,16 +66,16 @@ network_g:
   optical_width: 64 # 64
   optical_dw_expand: 2
   optical_ffn_expand: 2
-  optical_enc_blks: [1, 1, 1, 28] # 28
-  optical_middle_blk_num: 1
-  optical_dec_blks: [1, 1, 1, 1]
+  optical_enc_blks: [2, 2, 4, 8] # 28
+  optical_middle_blk_num: 12
+  optical_dec_blks: [2, 2, 4, 8]
 
   sar_width: 64 # 32
   sar_dw_expand: 2
   sar_ffn_expand: 2
-  sar_enc_blks: [1, 1, 1, 28] # 28
-  sar_middle_blk_num: 1
-  sar_dec_blks: [1, 1, 1, 1]
+  sar_enc_blks: [2, 2, 4, 8] # 28
+  sar_middle_blk_num: 12
+  sar_dec_blks: [2, 2, 4, 8]
 
 
 train:
