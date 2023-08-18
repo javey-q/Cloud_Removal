@@ -32,7 +32,8 @@ class SGFA(nn.Module):
             if mask:
                 mask = F.interpolate(mask, scale_factor=1. / self.rate, mode='bilinear',
                                            align_corners=True, recompute_scale_factor=True)  # (n, c, h/r, h/r)
-        foreground_size, background_size, mask_size = list(foreground.size()), list(background.size()), list(mask.size())  # (n, c, h, h) , (n, c, h/r, h/r)
+                mask_size = list(mask.size())
+        foreground_size, background_size = list(foreground.size()), list(background.size())  # (n, c, h, h) , (n, c, h/r, h/r)
 
         background_kernel_size = 2 * self.rate
         background_patches = extract_image_patches(background, kernel_size=background_kernel_size,
@@ -61,9 +62,8 @@ class SGFA(nn.Module):
         output_list = []
         padding = 0 if self.kernel_size == 1 else 1
 
-        for foreground_item, foreground_patches_item, background_patches_item, mask_patches_item in zip(
-                foreground_list, foreground_patches_list, background_patches_list, mask_patches_list
-        ):
+        for i, (foreground_item, foreground_patches_item, background_patches_item) in enumerate(zip(
+                foreground_list, foreground_patches_list, background_patches_list)):
             escape_NaN = torch.FloatTensor([1e-4])
             if self.use_cuda:
                 device = foreground_patches_item.device
@@ -77,15 +77,16 @@ class SGFA(nn.Module):
             # (1, c, h/r, h/r) conv (m_f, c, k, k) -> (1, m_f, h/r, h/r) m_f = (h/r)*(h/r)
             score_map = score_map.view(1, foreground_size[2] // self.stride * foreground_size[3] // self.stride,
                                        foreground_size[2], foreground_size[3])  # (1, m_f, h/r, h/r) m_f = (h/r)*(h/r)
-
-            mask_patches_item = mask_patches_item[0]
-            mm = (reduce_mean(mask_patches_item, axis=[1, 2, 3], keepdim=True) >= 0.9).to(torch.float32)
-            # print(mm.sum())
-            mm = mm.permute(1, 0, 2, 3)
-            mm = mm * (-1000)
-            mm = mm.repeat(1, 1, foreground_size[2], foreground_size[3])
-
-            attention_map = F.softmax(score_map * self.softmax_scale + mm, dim=1)
+            if mask:
+                mask_patches_item = mask_patches_list[i][0]
+                mm = (reduce_mean(mask_patches_item, axis=[1, 2, 3], keepdim=True) >= 0.9).to(torch.float32)
+                # print(mm.sum())
+                mm = mm.permute(1, 0, 2, 3)
+                mm = mm * (-1000)
+                mm = mm.repeat(1, 1, foreground_size[2], foreground_size[3])
+                attention_map = F.softmax(score_map * self.softmax_scale + mm, dim=1)
+            else:
+                attention_map = F.softmax(score_map * self.softmax_scale, dim=1)
             attention_map = attention_map.clamp(min=1e-8)
 
             background_patches_item = background_patches_item[0]  # (m_b, c, 2*r, 2*r)  m_b=(h/r)*(h/r)

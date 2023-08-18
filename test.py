@@ -69,7 +69,7 @@ def main():
                     pred, pred_gray = net(image, sar)
                     pred = pred.detach().cpu()
                 else:
-                    pred, pred_gray = net(image, sar).detach().cpu()
+                    pred = net(image, sar).detach().cpu()
 
                 save_img = tensor2img([pred], rgb2bgr=True)
                 save_img_path = os.path.join(opt['infer_dir'], img_name[0])

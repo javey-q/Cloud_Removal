@@ -4,12 +4,12 @@ import csv
 from sklearn import model_selection
 
 phase = 'test'
-data_root = r"E:\Dataset\Rsipac\test"
-data_slice= r"E:\Dataset\Rsipac\test_256_0.5"
-data_csv = r"E:\Dataset\Rsipac\test_256_0.5\train_val_list.csv"
+data_root = r"D:\Dataset\Rsipac\testB"
+data_slice= r"D:\Dataset\Rsipac\testB_256"
+data_csv = r"D:\Dataset\Rsipac\testB_256\train_val_list.csv"
 
 slice_size = 256
-overlap_rate = 0.5
+overlap_rate = 0
 
 if not os.path.exists(data_slice):
     if phase == 'train':
@@ -73,7 +73,7 @@ with open(data_csv, 'w', newline='') as file:
                         data = [2, 'SAR', 'opt_clear', 'opt_cloudy', output_name]
                     writer.writerow(data)
 
-        assert  cnt_output == 9, f'{cnt_output}!=9'
+        assert  cnt_output == 4, f'{cnt_output}!=4'
 print(cnt_output)
 
 
