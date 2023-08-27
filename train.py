@@ -110,7 +110,7 @@ def main():
         # metrics_ssim = torch.tensor([accelerator.process_index]).to(accelerator.device)
         # metrics = {'val_loss': np.inf, 'val_ssim': 0, 'val_psnr': 0}
         # if accelerator.is_local_main_process:
-        checkpoint = torch.load(ckpt_path)
+        checkpoint = torch.load(ckpt_path ,map_location='cpu')
         net.load_state_dict(checkpoint['model'])
         start_epoch = resume_opt['resume_epoch'] if 'resume_epoch' in  resume_opt and resume_opt['resume_epoch'] \
             else checkpoint['epoch']

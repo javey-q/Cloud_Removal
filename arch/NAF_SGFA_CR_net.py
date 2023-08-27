@@ -149,7 +149,7 @@ class BaselineBlock(nn.Module):
         return y + x * self.gamma
 
 
-class NAF_Net(nn.Module):
+class NAF_SGFA_Net(nn.Module):
 
     def __init__(self, block_type='Baseline', optical_channel=3, sar_channel=1, output_channel=3, optical_width=16, optical_middle_blk_num=1, optical_enc_blks=[],
                  optical_dec_blks=[], optical_dw_expand=1, optical_ffn_expand=2, sar_width=16, sar_middle_blk_num=1, sar_enc_blks=[],
@@ -180,9 +180,9 @@ class NAF_Net(nn.Module):
         block_name = block_type + 'Block'
         block_cls = find_class_in_module(block_name, 'arch.NAF_CR_net')
 
-        # self.sgfa_module1 = SGFA(kernel_size=1, stride=1, rate=1, softmax_scale=10.0)
-        # self.sgfa_module2 = SGFA(kernel_size=3, stride=1, rate=2, softmax_scale=10.0)
-        # self.sgfa_module3 = SGFA(kernel_size=3, stride=1, rate=2, softmax_scale=10.0)
+        self.sgfa_module1 = SGFA(kernel_size=1, stride=1, rate=1, softmax_scale=10.0)
+        self.sgfa_module2 = SGFA(kernel_size=3, stride=1, rate=2, softmax_scale=10.0)
+        self.sgfa_module3 = SGFA(kernel_size=3, stride=1, rate=2, softmax_scale=10.0)
 
         self.fusion_layer = nn.Sequential(
             nn.Conv2d(in_channels=optical_width + sar_width, out_channels=optical_width, kernel_size=3, stride=1, padding=1, groups=1,
@@ -270,9 +270,9 @@ class NAF_Net(nn.Module):
 
         optical_encs = []
         sar_encs = []
-        i = 0
-        for optical_encoder, optical_down, sar_encoder, sar_down in \
-                zip(self.optical_encoders, self.optical_downs, self.sar_encoders, self.sar_downs):
+        indexs = [1, 2, 3, 4]
+        for index, optical_encoder, optical_down, sar_encoder, sar_down in \
+                zip(indexs, self.optical_encoders, self.optical_downs, self.sar_encoders, self.sar_downs):
             optical_x = optical_encoder(optical_x)
             optical_encs.append(optical_x)
             optical_x = optical_down(optical_x)
@@ -280,19 +280,19 @@ class NAF_Net(nn.Module):
             sar_x = sar_encoder(sar_x)
             sar_encs.append(sar_x)
             sar_x = sar_down(sar_x)
-            i += 1
-            # if i==2:
+            if index==2:
                 # mask_s = nn.functional.interpolate(mask, (optical_x.shape[2], optical_x.shape[3]))
-                # optical_x = self.sgfa_module2(optical_x, sar_x)
+                optical_x = self.sgfa_module2(optical_x, sar_x)
 
         optical_x = self.optical_middle_blks(optical_x)
         sar_x = self.sar_middle_blks(sar_x)
 
         # mask_s = nn.functional.interpolate(mask, (optical_x.shape[2], optical_x.shape[3]))
-        # optical_x = self.sgfa_module1(optical_x, sar_x, mask_s)
-        i = 0
-        for optical_decoder, optical_up, optical_enc_skip, sar_decoder, sar_up, sar_enc_skip in \
-                zip(self.optical_decoders, self.optical_ups, optical_encs[::-1], self.sar_decoders, self.sar_ups, sar_encs[::-1]):
+        optical_x = self.sgfa_module1(optical_x, sar_x)
+
+        indexs = [4, 3, 2, 1]
+        for index, optical_decoder, optical_up, optical_enc_skip, sar_decoder, sar_up, sar_enc_skip in \
+                zip(indexs, self.optical_decoders, self.optical_ups, optical_encs[::-1], self.sar_decoders, self.sar_ups, sar_encs[::-1]):
             optical_x = optical_up(optical_x)
             optical_x = optical_x + optical_enc_skip
             optical_x = optical_decoder(optical_x)
@@ -300,10 +300,9 @@ class NAF_Net(nn.Module):
             sar_x = sar_up(sar_x)
             sar_x = sar_x + sar_enc_skip
             sar_x = sar_decoder(sar_x)
-            i += 1
-            # if i == 2:
+            if index == 2:
                 # mask_s = nn.functional.interpolate(mask, (optical_x.shape[2], optical_x.shape[3]))
-                # optical_x = self.sgfa_module3(optical_x, sar_x)
+                optical_x = self.sgfa_module3(optical_x, sar_x)
 
 
         fusion = self.fusion_layer(torch.cat((optical_x, sar_x), dim=1))
@@ -320,10 +319,10 @@ class NAF_Net(nn.Module):
         x = F.pad(x, (0, mod_pad_w, 0, mod_pad_h))
         return x
 
-class NAF_Local_CR(Local_Base_CR, NAF_Net):
+class NAF_SGFA_Local_CR(Local_Base_CR, NAF_SGFA_Net):
     def __init__(self, *args, train_size=(1, 3, 256, 256), sar_size=(1, 2, 256, 256), mask_size=(1, 1, 256, 256), fast_imp=False, **kwargs):
         Local_Base_CR.__init__(self)
-        NAF_Net.__init__(self, *args, **kwargs)
+        NAF_SGFA_Net.__init__(self, *args, **kwargs)
 
         N, C, H, W = train_size
         base_size = (int(H * 1.5), int(W * 1.5))
@@ -334,7 +333,7 @@ class NAF_Local_CR(Local_Base_CR, NAF_Net):
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--opt', type=str, default='../options/NAF_basic_crop_config.yml',
+    parser.add_argument('--opt', type=str, default='../options/NAF_simple_crop_config.yml',
                         help='the path of options file.')
     args = parser.parse_args()
     opt = parse_option(args.opt)

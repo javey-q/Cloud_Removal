@@ -28,7 +28,6 @@ class SimpleGate(nn.Module):
         x1, x2 = x.chunk(2, dim=1)
         return x1 * x2
 
-
 class NAFBlock(nn.Module):
     def __init__(self, c, DW_Expand=2, FFN_Expand=2, drop_out_rate=0.):
         super().__init__()
@@ -334,7 +333,7 @@ class NAF_Local_CR(Local_Base_CR, NAF_Net):
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--opt', type=str, default='../options/NAF_basic_crop_config.yml',
+    parser.add_argument('--opt', type=str, default='../options/NAF_simple_crop_config.yml',
                         help='the path of options file.')
     args = parser.parse_args()
     opt = parse_option(args.opt)

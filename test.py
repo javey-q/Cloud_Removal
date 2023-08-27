@@ -21,7 +21,7 @@ from utils.misc import get_latest_run, set_random_seed
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--opt', type=str, default='./options/basic_test_config.yml',
+    parser.add_argument('--opt', type=str, default='./options/test/basic_test_config.yml',
                         help='the path of options file.')
     parser.add_argument('--device', default='cuda',
                         help='device id (i.e. 0 or 0,1 or cpu)')
@@ -55,7 +55,7 @@ def main():
 
     batch_time = AverageMeter('Time', ':6.3f', Summary.NONE)
     end = time.time()
-    target_size = opt['Experiment']['target_size']
+
     use_gray = opt['network']['use_gray'] if 'use_gray' in opt['network'] else False
     with torch.no_grad():
         with tqdm(total=len(test_loader),
@@ -79,9 +79,8 @@ def main():
                 batch_time.update(time.time() - end)
                 end = time.time()
 
-
                 test_pbar.set_postfix(
-                    ordered_dict={'batch_time': batch_time})
+                    ordered_dict={'batch_time': batch_time.avg})
                 test_pbar.update()
 
 if __name__ == '__main__':
