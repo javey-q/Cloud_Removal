@@ -1,6 +1,6 @@
 Project: Rsipac_CR
 Experiment:
-  name: &name NAF_CR_Refine_5:1_256
+  name: &name NAF_CR_Refine_SGFA_2:1
   checkpoint_dir: !!python/object/apply:os.path.join ["./experiments", *name, "checkpoints"]
   result_dir: !!python/object/apply:os.path.join ["./experiments", *name, "results"]
   log_dir:
@@ -9,8 +9,6 @@ Experiment:
 #    resume_ckpt: checkpoint_epoch_100.pth
 #    resume_wandb: 16q8xi38
 #    resume_addition: true  # modification max epoch
-
-infer_dir:  !!python/object/apply:os.path.join ["./infer", *name, 'pred']
 
 manual_seed: 42
 Accelerator:
@@ -31,7 +29,7 @@ datasets:
     cloud_threshold: 0.2
     random_crop: true
     base_size: 256
-    crop_size: 256
+    crop_size: 192
 
     # dataloader
     batch_size: 1
@@ -56,7 +54,7 @@ datasets:
 
 #  val_2:
 network_g:
-  name: NAF_CR_Net
+  name: NAF_SGFA_CR_Net
   block_type: NAF
   optical_channel: 3
   sar_channel: 2

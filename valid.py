@@ -21,6 +21,8 @@ from utils.parser_option import parse_option
 from utils.misc import get_latest_run, set_random_seed
 from utils.metrics import *
 
+# python valid.py --opt ./options/NAF_refine_crop_config.yml --phase val --visual Contrast --filter
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--opt', type=str, default='./options/basic_config.yml',
@@ -46,21 +48,27 @@ def main():
     opts = parse_args()
     device = torch.device(opts['device'])
 
-    if not os.path.exists(opts['infer_dir']):
-        os.makedirs(os.path.join(opts['infer_dir']))
-
-    net = get_arch(opts['network']).to(device)  # network
+    net = get_arch(opts['network_g']).to(device)  # network
     net.eval()
 
     data_phase = opts['phase']
+    #
+    if data_phase == 'val':
+        opts['datasets'][data_phase]['batch_size'] = 1
     valid_loader = getLoader(opts['datasets'][data_phase])
     dataset_name = opts['datasets'][data_phase]['name']
     meta_info = opts['datasets'][data_phase]['meta_info']
+
+    save_dir = os.path.join(opts['Experiment']['result_dir'], data_phase + '_infer')
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+
     # Todo
     meta_csv = pd.read_csv(meta_info, names=['phase','SAR', 'opt_clear', 'opt_cloudy','img_name'])
-    if  'checkpoint' in opts['Experiment'] and opts['Experiment']['checkpoint']:
+    if  'checkpoint_dir' in opts['Experiment'] and opts['Experiment']['checkpoint_dir']:
         #
-        ckpt_path = opts['Experiment']['checkpoint']
+        ckpt_dir = opts['Experiment']['checkpoint_dir']
+        ckpt_path = os.path.join(ckpt_dir, 'checkpoint_best.pth')
         checkpoint = torch.load(ckpt_path, map_location=device)
         net.load_state_dict(checkpoint['model'])
 
@@ -74,7 +82,7 @@ def main():
     if opts['filter']:
         if 'ssim' not in list(meta_csv.columns):
             meta_csv['ssim'] = None
-    use_gray = opts['network']['use_gray'] if 'use_gray' in opts['network'] else False
+    use_gray = opts['network_g']['use_gray'] if 'use_gray' in opts['network_g'] else False
     with torch.no_grad():
         with tqdm(total=len(valid_loader),
                   desc=f'Test on {dataset_name}', unit='batch') as test_pbar:
@@ -86,15 +94,16 @@ def main():
 
                 if use_gray:
                     pred, pred_gray = net(image, sar)
-                    pred = pred.detach().cpu()
+                    pred = pred
                 else:
-                    pred = net(image, sar).detach().cpu()
+                    pred = net(image, sar)
 
                 ssim = SSIM(pred, label).item()
                 if opts['filter']:
-                    meta_csv.loc[meta_csv.img_name==img_name[0],'ssim'] = ssim
-
-                save_img_path = os.path.join(opts['Experiment']['result_dir'], data_phase+'_infer', img_name[0])
+                    # to do
+                    meta_csv.loc[meta_csv.img_name==img_name[0], 'ssim'] = ssim
+                # to do
+                save_img_path = os.path.join(save_dir, img_name[0])
                 if opts['visual'] == 'Pure':
                     save_img = tensor2img([pred], rgb2bgr=True)
                     imwrite(save_img, save_img_path)
@@ -113,7 +122,7 @@ def main():
     if opts['filter']:
         meta_csv['rank'] = meta_csv.groupby('phase')['ssim'].rank(method='min', ascending=False)
         phase = 1 if data_phase == 'train' else 2
-        print(meta_csv.loc[meta_csv.phase == phase, 'rank'].describe())
+        print(meta_csv.loc[meta_csv.phase == phase, 'ssim'].describe())
         meta_csv.to_csv(meta_info, header=0, index=0)
 
     print(f'The average SSIM of dataset {dataset_name} is {m_ssim.avg}.')
