@@ -53,8 +53,8 @@ def main():
 
     data_phase = opts['phase']
     #
-    if data_phase == 'val':
-        opts['datasets'][data_phase]['batch_size'] = 1
+    # if data_phase == 'val':
+    #     opts['datasets'][data_phase]['batch_size'] = 1
     valid_loader = getLoader(opts['datasets'][data_phase])
     dataset_name = opts['datasets'][data_phase]['name']
     meta_info = opts['datasets'][data_phase]['meta_info']
@@ -124,7 +124,8 @@ def main():
         meta_csv['rank'] = meta_csv.groupby('phase')['ssim'].rank(method='min', ascending=False)
         phase = 1 if data_phase == 'train' else 2
         print(meta_csv.loc[meta_csv.phase == phase, 'ssim'].describe())
-        meta_csv.to_csv(meta_info, header=0, index=0)
+        print(meta_csv.columns)
+        meta_csv.to_csv(meta_info.replace('.csv', '_new.csv'), header=0, index=0)
 
     print(f'The average SSIM of dataset {dataset_name} is {m_ssim.avg}.')
 

@@ -20,8 +20,8 @@ datasets:
   train:
     name: Real_CR
     phase: train
-    root:  ../Dataset/Rsipac/train_256
-    meta_info: ../Dataset/Rsipac/train_256/train_val_list.csv
+    root:  ../Dataset/Rsipac/train_320
+    meta_info: ../Dataset/Rsipac/train_320/train_val_list.csv
     io_backend:
       type: disk
     repeat: 1
@@ -30,7 +30,7 @@ datasets:
     use_cloudmask: false
     cloud_threshold: 0.2
     random_crop: true
-    base_size: 256
+    base_size: 320
     crop_size: 256
 
     # dataloader
