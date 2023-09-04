@@ -94,14 +94,16 @@ def main():
 
                 if use_gray:
                     pred, pred_gray = net(image, sar)
-                    pred = pred
                 else:
                     pred = net(image, sar)
-
-                ssim = SSIM(pred, label).item()
-                if opts['filter']:
-                    # to do
-                    meta_csv.loc[meta_csv.img_name==img_name[0], 'ssim'] = ssim
+                pred_list = torch.split(pred, 1, dim=0)
+                label_list = torch.split(label, 1, dim=0)
+                for i, (pred, label) in enumerate(zip(pred_list, label_list)):
+                    ssim = SSIM(pred, label).item()
+                    if opts['filter']:
+                        # to do
+                        meta_csv.loc[meta_csv.img_name==img_name[i], 'ssim'] = ssim
+                    m_ssim.update(ssim, 1)
                 # to do
                 save_img_path = os.path.join(save_dir, img_name[0])
                 if opts['visual'] == 'Pure':
@@ -112,7 +114,6 @@ def main():
                     grid = make_grid(img_sample, nrow=1, normalize=True)  # 每一行显示的图像列数
                     save_image(grid, save_img_path)
 
-                m_ssim.update(ssim, image.size(0))
                 batch_time.update(time.time() - end)
                 end = time.time()
 
