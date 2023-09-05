@@ -39,10 +39,10 @@ class Generic_train_test():
 		# dirs
 		self.checkpoint_dir = opts['Experiment']['checkpoint_dir']
 		self.result_dir = opts['Experiment']['result_dir']
-		self.use_id = opts['network_g']['use_id'] if 'use_id' in opts['network_g'] else False
 		self.lambda_gray = 0.5
 
 		self.sar_trans = opts['sar_trans'] if 'sar_trans' in opts else False
+		self.use_id = opts['use_id'] if 'use_id' in opts else False
 
 
 	def decode_input(self, data):
