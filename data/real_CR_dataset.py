@@ -26,7 +26,7 @@ class Real_CR_Dataset(Dataset):
 
         self.random_crop = opt['random_crop'] if 'random_crop' in opt else False
         self.use_cloudmask =  opt['use_cloudmask'] if 'use_cloudmask' in opt else False
-        self.use_gray =  opt['use_gray'] if 'use_gray' in opt else False
+        self.use_id =  opt['use_id'] if 'use_id' in opt else False
         self.use_flip =  opt['use_flip'] if 'use_flip' in opt else False
         self.use_rot = opt['use_rot'] if 'use_rot' in opt else False
 
@@ -49,6 +49,8 @@ class Real_CR_Dataset(Dataset):
         sar_VV_path = os.path.join(self.root, fileID[1], 'VV', fileID[4].replace('S2', 'S1'))
         clear_path = os.path.join(self.root, fileID[2], fileID[4])
         cloudy_path = os.path.join(self.root, fileID[3], fileID[4])
+        if self.use_id:
+            image_id = int(fileID[7])
 
         if self.file_client is None:
             self.file_client = FileClient(
@@ -84,11 +86,10 @@ class Real_CR_Dataset(Dataset):
 
         # if self.use_cloudmask:
         #     tensor_mask = img2tensor(trans_mask, bgr2rgb=False, float32=True)
-        if self.use_gray:
-            trans_gray = cv2.cvtColor(trans_clear, cv2.COLOR_BGR2GRAY)
-            trans_gray = np.expand_dims(trans_gray, axis=-1)
-            tensor_gray= img2tensor(trans_gray, bgr2rgb=False, float32=True)
-
+        # if self.use_gray:
+            # trans_gray = cv2.cvtColor(trans_clear, cv2.COLOR_BGR2GRAY)
+            # trans_gray = np.expand_dims(trans_gray, axis=-1)
+            # tensor_gray= img2tensor(trans_gray, bgr2rgb=False, float32=True)
 
         results = {'sar': tensor_sar,
                    'opt_cloudy':tensor_cloudy,
@@ -96,8 +97,9 @@ class Real_CR_Dataset(Dataset):
                    'file_name': fileID[4]}
         # if self.use_cloudmask:
         #     results['cloud_mask'] = tensor_mask
-        if self.use_gray:
-            results['gray'] = tensor_gray
+        if self.use_id:
+            image_id = torch.tensor(image_id)
+            results['image_id'] = image_id
 
         return results
 

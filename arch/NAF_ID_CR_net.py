@@ -13,6 +13,7 @@ Simple Baselines for Image Restoration
 }
 '''
 import os
+import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -22,6 +23,7 @@ from .sgfa import SGFA
 
 import argparse
 from utils.parser_option import parse_option
+from einops import repeat
 
 class SimpleGate(nn.Module):
     def forward(self, x):
@@ -29,9 +31,18 @@ class SimpleGate(nn.Module):
         return x1 * x2
 
 class NAFBlock(nn.Module):
-    def __init__(self, c, DW_Expand=2, FFN_Expand=2, drop_out_rate=0.):
+    def __init__(self, c, DW_Expand=2, FFN_Expand=2, drop_out_rate=0., emb_channels=0):
         super().__init__()
         dw_channel = c * DW_Expand
+        if emb_channels!=0:
+            self.emb_channels = emb_channels
+            self.emb_layers = nn.Sequential(
+                nn.SiLU(),
+                nn.Linear(
+                    emb_channels,
+                    c,
+                ),
+            )
         self.conv1 = nn.Conv2d(in_channels=c, out_channels=dw_channel, kernel_size=1, padding=0, stride=1, groups=1,
                                bias=True)
         self.conv2 = nn.Conv2d(in_channels=dw_channel, out_channels=dw_channel, kernel_size=3, padding=1, stride=1,
@@ -65,7 +76,7 @@ class NAFBlock(nn.Module):
         self.beta = nn.Parameter(torch.zeros((1, c, 1, 1)), requires_grad=True)
         self.gamma = nn.Parameter(torch.zeros((1, c, 1, 1)), requires_grad=True)
 
-    def forward(self, inp):
+    def forward(self, inp, id_emb=None):
         x = inp
 
         x = self.norm1(x)
@@ -80,6 +91,12 @@ class NAFBlock(nn.Module):
 
         y = inp + x * self.beta
 
+        if id_emb!=None:
+            emb_out = self.emb_layers(id_emb).type(y.dtype)
+            while len(emb_out.shape) < len(y.shape):
+                emb_out = emb_out[..., None]
+            y = y + emb_out
+
         x = self.conv4(self.norm2(y))
         x = self.sg(x)
         x = self.conv5(x)
@@ -88,72 +105,49 @@ class NAFBlock(nn.Module):
 
         return y + x * self.gamma
 
-class BaselineBlock(nn.Module):
-    def __init__(self, c, DW_Expand=1, FFN_Expand=2, drop_out_rate=0.):
-        super().__init__()
-        dw_channel = c * DW_Expand
-        self.conv1 = nn.Conv2d(in_channels=c, out_channels=dw_channel, kernel_size=1, padding=0, stride=1, groups=1, bias=True)
-        self.conv2 = nn.Conv2d(in_channels=dw_channel, out_channels=dw_channel, kernel_size=3, padding=1, stride=1, groups=dw_channel,
-                               bias=True)
-        self.conv3 = nn.Conv2d(in_channels=dw_channel, out_channels=c, kernel_size=1, padding=0, stride=1, groups=1, bias=True)
-        
-        # Channel Attention
-        self.se = nn.Sequential(
-            nn.AdaptiveAvgPool2d(1),
-            nn.Conv2d(in_channels=dw_channel, out_channels=dw_channel // 2, kernel_size=1, padding=0, stride=1,
-                      groups=1, bias=True),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(in_channels=dw_channel // 2, out_channels=dw_channel, kernel_size=1, padding=0, stride=1,
-                      groups=1, bias=True),
-            nn.Sigmoid()
-        )
-
-        # GELU
-        self.gelu = nn.GELU()
-
-        ffn_channel = FFN_Expand * c
-        self.conv4 = nn.Conv2d(in_channels=c, out_channels=ffn_channel, kernel_size=1, padding=0, stride=1, groups=1, bias=True)
-        self.conv5 = nn.Conv2d(in_channels=ffn_channel, out_channels=c, kernel_size=1, padding=0, stride=1, groups=1, bias=True)
-
-        self.norm1 = LayerNorm2d(c)
-        self.norm2 = LayerNorm2d(c)
-
-        self.dropout1 = nn.Dropout(drop_out_rate) if drop_out_rate > 0. else nn.Identity()
-        self.dropout2 = nn.Dropout(drop_out_rate) if drop_out_rate > 0. else nn.Identity()
-
-        self.beta = nn.Parameter(torch.zeros((1, c, 1, 1)), requires_grad=True)
-        self.gamma = nn.Parameter(torch.zeros((1, c, 1, 1)), requires_grad=True)
-
-    def forward(self, inp):
-        x = inp
-
-        x = self.norm1(x)
-
-        x = self.conv1(x)
-        x = self.conv2(x)
-        x = self.gelu(x)
-        x = x * self.se(x)
-        x = self.conv3(x)
-
-        x = self.dropout1(x)
-
-        y = inp + x * self.beta
-
-        x = self.conv4(self.norm2(y))
-        x = self.gelu(x)
-        x = self.conv5(x)
-
-        x = self.dropout2(x)
-
-        return y + x * self.gamma
 
 
-class NAF_Net(nn.Module):
+def nonlinearity(x):
+    # swish
+    return x*torch.sigmoid(x)
+
+def image_id_embedding(image_id, dim, max_period=10000, repeat_only=False):
+    """
+    Create sinusoidal timestep embeddings.
+    :param timesteps: a 1-D Tensor of N indices, one per batch element.
+                      These may be fractional.
+    :param dim: the dimension of the output.
+    :param max_period: controls the minimum frequency of the embeddings.
+    :return: an [N x dim] Tensor of positional embeddings.
+    """
+    if not repeat_only:
+        half = dim // 2
+        freqs = torch.exp(
+            -math.log(max_period) * torch.arange(start=0, end=half, dtype=torch.float32) / half
+        ).to(device=image_id.device)
+        args = image_id[:, None].float() * freqs[None]
+        embedding = torch.cat([torch.cos(args), torch.sin(args)], dim=-1)
+        if dim % 2:
+            embedding = torch.cat([embedding, torch.zeros_like(embedding[:, :1])], dim=-1)
+    else:
+        embedding = repeat(image_id, 'b -> b d', d=dim)
+    return embedding
+
+
+class NAF_ID_Net(nn.Module):
 
     def __init__(self, block_type='Baseline', optical_channel=3, sar_channel=1, output_channel=3, optical_width=16, optical_middle_blk_num=1, optical_enc_blks=[],
                  optical_dec_blks=[], optical_dw_expand=1, optical_ffn_expand=2, sar_width=16, sar_middle_blk_num=1, sar_enc_blks=[],
-                 sar_dec_blks=[], sar_dw_expand=1, sar_ffn_expand=2):
+                 sar_dec_blks=[], sar_dw_expand=1, sar_ffn_expand=2, model_channels=256):
         super().__init__()
+
+        self.model_channels = model_channels
+        id_embed_dim = model_channels * 4
+        self.id_embed = nn.Sequential(
+            nn.Linear(model_channels, id_embed_dim),
+            nn.SiLU(),
+            nn.Linear(id_embed_dim, id_embed_dim),
+        )
 
         self.optical_intro = nn.Conv2d(in_channels=optical_channel, out_channels=optical_width, kernel_size=3, padding=1, stride=1, groups=1,
                               bias=True)
@@ -164,6 +158,7 @@ class NAF_Net(nn.Module):
         self.optical_middle_blks = nn.ModuleList()
         self.optical_ups = nn.ModuleList()
         self.optical_downs = nn.ModuleList()
+        self.optical_first_decoders = nn.ModuleList()
 
         self.sar_intro = nn.Conv2d(in_channels=sar_channel, out_channels=sar_width, kernel_size=3, padding=1, stride=1, groups=1,
                               bias=True)
@@ -175,6 +170,7 @@ class NAF_Net(nn.Module):
         self.sar_middle_blks = nn.ModuleList()
         self.sar_ups = nn.ModuleList()
         self.sar_downs = nn.ModuleList()
+        self.sar_first_decoders = nn.ModuleList()
 
         block_name = block_type + 'Block'
         block_cls = find_class_in_module(block_name, 'arch.NAF_CR_net')
@@ -204,12 +200,15 @@ class NAF_Net(nn.Module):
             )
             optical_chan = optical_chan * 2
 
+        self.optical_middle_first_blk = block_cls(optical_chan, optical_dw_expand, optical_ffn_expand, id_embed_dim)
         self.optical_middle_blks = \
             nn.Sequential(
-                *[block_cls(optical_chan, optical_dw_expand, optical_ffn_expand) for _ in range(optical_middle_blk_num)]
+                *[block_cls(optical_chan, optical_dw_expand, optical_ffn_expand) for _ in range(optical_middle_blk_num-2)]
             )
+        self.optical_middle_last_blk = block_cls(optical_chan, optical_dw_expand, optical_ffn_expand, id_embed_dim)
 
         for num in optical_dec_blks:
+            id_embed_dim = id_embed_dim // 2
             self.optical_ups.append(
                 nn.Sequential(
                     nn.Conv2d(optical_chan, optical_chan * 2, 1, bias=False),
@@ -217,13 +216,18 @@ class NAF_Net(nn.Module):
                 )
             )
             optical_chan = optical_chan // 2
+            self.optical_first_decoders.append(
+                block_cls(optical_chan, optical_dw_expand, optical_ffn_expand, id_embed_dim)
+            )
             self.optical_decoders.append(
                 nn.Sequential(
-                    *[block_cls(optical_chan, optical_dw_expand, optical_ffn_expand) for _ in range(num)]
+                    block_cls(optical_chan, optical_dw_expand, optical_ffn_expand, id_embed_dim),
+                    *[block_cls(optical_chan, optical_dw_expand, optical_ffn_expand) for _ in range(num-1)]
                 )
             )
 
         sar_chan = sar_width
+        id_embed_dim = model_channels * 4
         # sar
         for num in sar_enc_blks:
             self.sar_encoders.append(
@@ -236,12 +240,15 @@ class NAF_Net(nn.Module):
             )
             sar_chan = sar_chan * 2
 
+        self.sar_middle_first_blk = block_cls(sar_chan, sar_dw_expand, sar_ffn_expand, id_embed_dim)
         self.sar_middle_blks = \
             nn.Sequential(
-                *[block_cls(sar_chan, sar_dw_expand, sar_ffn_expand) for _ in range(sar_middle_blk_num)]
+                *[block_cls(sar_chan, sar_dw_expand, sar_ffn_expand) for _ in range(sar_middle_blk_num)],
             )
+        self.sar_middle_last_blk = block_cls(sar_chan, sar_dw_expand, sar_ffn_expand, id_embed_dim)
 
         for num in sar_dec_blks:
+            id_embed_dim = id_embed_dim // 2
             self.sar_ups.append(
                 nn.Sequential(
                     nn.Conv2d(sar_chan, sar_chan * 2, 1, bias=False),
@@ -249,9 +256,12 @@ class NAF_Net(nn.Module):
                 )
             )
             sar_chan = sar_chan // 2
+            self.sar_first_decoders.append(
+                block_cls(sar_chan, sar_dw_expand, sar_ffn_expand, id_embed_dim)
+            )
             self.sar_decoders.append(
                 nn.Sequential(
-                    *[block_cls(sar_chan, sar_dw_expand, sar_ffn_expand) for _ in range(num)]
+                    *[block_cls(sar_chan, sar_dw_expand, sar_ffn_expand) for _ in range(num-1)]
                 )
             )
 
@@ -266,6 +276,9 @@ class NAF_Net(nn.Module):
 
         optical_x = self.optical_intro(optical)
         sar_x = self.sar_intro(sar)
+
+        id_emb = image_id_embedding(image_id, self.model_channels, repeat_only=False)
+        emb = self.id_embed(id_emb)
 
         optical_encs = []
         sar_encs = []
@@ -284,18 +297,25 @@ class NAF_Net(nn.Module):
                 # mask_s = nn.functional.interpolate(mask, (optical_x.shape[2], optical_x.shape[3]))
                 # optical_x = self.sgfa_module2(optical_x, sar_x)
 
+        optical_x = self.optical_middle_first_blk(optical_x, emb)
         optical_x = self.optical_middle_blks(optical_x)
+        optical_x = self.optical_middle_last_blk(optical_x, emb)
+
+        sar_x = self.sar_middle_first_blk(sar_x, emb)
         sar_x = self.sar_middle_blks(sar_x)
+        sar_x = self.sar_middle_last_blk(sar_x, emb)
 
         # mask_s = nn.functional.interpolate(mask, (optical_x.shape[2], optical_x.shape[3]))
         # optical_x = self.sgfa_module1(optical_x, sar_x, mask_s)
         i = 0
-        for optical_decoder, optical_up, optical_enc_skip, sar_decoder, sar_up, sar_enc_skip in \
-                zip(self.optical_decoders, self.optical_ups, optical_encs[::-1], self.sar_decoders, self.sar_ups, sar_encs[::-1]):
+        for optical_first_decoder, optical_decoder, optical_up, optical_enc_skip, sar_first_decoder, sar_decoder, sar_up, sar_enc_skip in \
+                zip(self.optical_first_decoders, self.optical_decoders, self.optical_ups, optical_encs[::-1], self.sar_first_decoders, self.sar_decoders, self.sar_ups, sar_encs[::-1]):
+            optical_x = optical_first_decoder(optical_x, emb)
             optical_x = optical_up(optical_x)
             optical_x = optical_x + optical_enc_skip
             optical_x = optical_decoder(optical_x)
 
+            sar_x = sar_first_decoder(sar_x, emb)
             sar_x = sar_up(sar_x)
             sar_x = sar_x + sar_enc_skip
             sar_x = sar_decoder(sar_x)
@@ -303,7 +323,6 @@ class NAF_Net(nn.Module):
             # if i == 2:
                 # mask_s = nn.functional.interpolate(mask, (optical_x.shape[2], optical_x.shape[3]))
                 # optical_x = self.sgfa_module3(optical_x, sar_x)
-
 
         fusion = self.fusion_layer(torch.cat((optical_x, sar_x), dim=1))
         output = self.output_layer(fusion)
@@ -319,10 +338,10 @@ class NAF_Net(nn.Module):
         x = F.pad(x, (0, mod_pad_w, 0, mod_pad_h))
         return x
 
-class NAF_Local_CR(Local_Base_CR, NAF_Net):
+class NAF_ID_Local_CR(Local_Base_CR, NAF_ID_Net):
     def __init__(self, *args, train_size=(1, 3, 256, 256), sar_size=(1, 2, 256, 256), mask_size=(1, 1, 256, 256), fast_imp=False, **kwargs):
         Local_Base_CR.__init__(self)
-        NAF_Net.__init__(self, *args, **kwargs)
+        NAF_ID_Net.__init__(self, *args, **kwargs)
 
         N, C, H, W = train_size
         base_size = (int(H * 1.5), int(W * 1.5))
@@ -346,7 +365,7 @@ if __name__ == '__main__':
     opt_network = opt['network_g']
     opt_network['block_type'] = 'NAF'
     opt_network.pop('name')
-    model = NAF_Local_CR(**opt_network).cuda()
+    model = NAF_ID_Local_CR(**opt_network).cuda()
 
     cloudy = torch.rand(1, 3, 256, 256).cuda()
     cloudfree = torch.rand(1, 3, 256, 256).cuda()

@@ -64,7 +64,11 @@ def main():
         os.makedirs(save_dir)
 
     # Todo
-    meta_csv = pd.read_csv(meta_info, names=['phase','SAR', 'opt_clear', 'opt_cloudy','img_name'])
+    if 'new' in meta_info:
+        meta_csv = pd.read_csv(meta_info, names=['phase', 'SAR', 'opt_clear', 'opt_cloudy', 'img_name', 'ssim', 'rank'])
+    else:
+        meta_csv = pd.read_csv(meta_info, names=['phase','SAR', 'opt_clear', 'opt_cloudy','img_name'])
+
     if  'checkpoint_dir' in opts['Experiment'] and opts['Experiment']['checkpoint_dir']:
         #
         ckpt_dir = opts['Experiment']['checkpoint_dir']
@@ -124,8 +128,9 @@ def main():
         meta_csv['rank'] = meta_csv.groupby('phase')['ssim'].rank(method='min', ascending=False)
         phase = 1 if data_phase == 'train' else 2
         print(meta_csv.loc[meta_csv.phase == phase, 'ssim'].describe())
-        print(meta_csv.columns)
-        meta_csv.to_csv(meta_info.replace('.csv', '_new.csv'), header=0, index=0)
+        if 'new' not in meta_info:
+            meta_info = meta_info.replace('.csv', '_new.csv')
+        meta_csv.to_csv(meta_info, header=0, index=0)
 
     print(f'The average SSIM of dataset {dataset_name} is {m_ssim.avg}.')
 

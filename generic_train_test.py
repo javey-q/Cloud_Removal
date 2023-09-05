@@ -39,7 +39,7 @@ class Generic_train_test():
 		# dirs
 		self.checkpoint_dir = opts['Experiment']['checkpoint_dir']
 		self.result_dir = opts['Experiment']['result_dir']
-		self.use_gray = opts['network_g']['use_gray'] if 'use_gray' in opts['network_g'] else False
+		self.use_id = opts['network_g']['use_id'] if 'use_id' in opts['network_g'] else False
 		self.lambda_gray = 0.5
 
 		self.sar_trans = opts['sar_trans'] if 'sar_trans' in opts else False
@@ -67,8 +67,7 @@ class Generic_train_test():
 			m_l1_loss = AverageMeter('Loss', ':.4e')
 			m_ssim = AverageMeter('SSIM', ':6.2f')
 			m_psnr = AverageMeter('PSNR', ':6.2f')
-			if self.use_gray:
-				m_l1_gray_loss = AverageMeter('Loss_Gray', ':.4e')
+
 			if accelerator.is_local_main_process:
 				wandb.log({'lr': self.optimizer.param_groups[0]["lr"], 'epoch':epoch})
 			self.net.train()
@@ -82,14 +81,12 @@ class Generic_train_test():
 						image = batch['opt_cloudy']
 						sar = batch['sar']
 						label = batch['opt_clear']
-						if self.use_gray:
-							label_gray = batch['gray']
+						if self.use_id:
+							image_id = batch['image_id']
 						self.optimizer.zero_grad()
 						loss_all = 0
-						if self.use_gray:
-							pred, pred_gray = self.net(image, sar)
-							loss_l1_gray = self.l1_loss(pred_gray, label_gray)
-							loss_all += loss_l1_gray * self.lambda_gray
+						if self.use_id:
+							pred = self.net(image, sar, image_id)
 						elif self.sar_trans:
 							pred = self.net(sar)
 						else:
@@ -118,8 +115,6 @@ class Generic_train_test():
 						m_l1_loss.update(loss_l1.item(), image.size(0)) # average ?
 						m_ssim.update(ssim, image.size(0))
 						m_psnr.update(psnr, image.size(0))
-						if self.use_gray:
-							m_l1_gray_loss.update(loss_l1_gray, image.size(0))
 
 						batch_time.update(time.time() - end)
 						end = time.time()
@@ -146,10 +141,7 @@ class Generic_train_test():
 			self.scheduler.step()
 
 			if accelerator.is_local_main_process:
-				if self.use_gray:
-					wandb.log({'train_loss': m_l1_loss.avg, 'train_ssim': m_ssim.avg, 'train_psnr': m_psnr.avg, 'train_loss_gray':m_l1_gray_loss.avg})
-				else:
-					wandb.log({'train_loss': m_l1_loss.avg, 'train_ssim': m_ssim.avg, 'train_psnr': m_psnr.avg})
+				wandb.log({'train_loss': m_l1_loss.avg, 'train_ssim': m_ssim.avg, 'train_psnr': m_psnr.avg})
 
 			accelerator.wait_for_everyone()
 
@@ -178,8 +170,7 @@ class Generic_train_test():
 		m_l1_loss = AverageMeter('Loss', ':.4e', Summary.NONE)
 		m_ssim = AverageMeter('SSIM', ':6.2f',  Summary.AVERAGE)
 		m_psnr = AverageMeter('PSNR', ':6.2f',  Summary.AVERAGE)
-		if self.use_gray:
-			m_l1_gray_loss = AverageMeter('Loss_Gray', ':.4e')
+
 		end = time.time()
 		for idx, val_loader in enumerate(self.val_loaders):
 			correct_count = 0
@@ -192,11 +183,11 @@ class Generic_train_test():
 					image = batch['opt_cloudy']
 					sar = batch['sar']
 					label = batch['opt_clear']
-					if self.use_gray:
-						label_gray = batch['gray']
+					if self.use_id:
+						image_id = batch['image_id']
 
-					if self.use_gray:
-						pred, pred_gray = self.net(image, sar)
+					if self.use_id:
+						pred = self.net(image, sar, image_id)
 					elif self.sar_trans:
 						pred = self.net(sar)
 					else:
@@ -204,13 +195,8 @@ class Generic_train_test():
 
 					# Gathers tensor and potentially drops duplicates in the last batch
 					all_pred, all_label = accelerator.gather_for_metrics((pred, label))
-					if self.use_gray:
-						all_pred_gray, all_label_gray = accelerator.gather_for_metrics((pred_gray, label_gray))
-
 
 					loss_l1 = self.l1_loss(all_pred, all_label)
-					if self.use_gray:
-						l1_loss_gray = self.l1_loss(all_pred_gray, all_label_gray)
 					# metrics
 					ssim = SSIM(all_pred, all_label).item()  # ?
 					# ssim = self.ssim(all_pred, all_label).item()
@@ -219,8 +205,6 @@ class Generic_train_test():
 					m_l1_loss.update(loss_l1.item() , image.size(0))  # average ?
 					m_ssim.update(ssim, image.size(0))
 					m_psnr.update(psnr, image.size(0))
-					if self.use_gray:
-						m_l1_gray_loss.update(l1_loss_gray, image.size(0))
 
 					batch_time.update(time.time() - end)
 					end = time.time()
@@ -239,13 +223,8 @@ class Generic_train_test():
 
 		accelerator.wait_for_everyone()
 		if accelerator.is_local_main_process:
-			if self.use_gray:
-				wandb.log({'val_l1_loss': m_l1_loss.avg, 'val_ssim': m_ssim.avg, 'val_psnr': m_psnr.avg, 'val_l1_gray_loss':m_l1_gray_loss.avg})
-			else:
-				wandb.log({'val_loss': m_l1_loss.avg, 'val_ssim': m_ssim.avg, 'val_psnr': m_psnr.avg})
-		if self.use_gray:
-			accelerator.print(f'val_loss: {m_l1_loss.avg}, val_ssim: {m_ssim.avg}, val_ssim: {m_psnr.avg}, val_l1_gray_loss: {m_l1_gray_loss.avg}')
-		else:
-			accelerator.print(f'val_loss: {m_l1_loss.avg}, val_ssim: {m_ssim.avg}, val_ssim: {m_psnr.avg}')
+			wandb.log({'val_loss': m_l1_loss.avg, 'val_ssim': m_ssim.avg, 'val_psnr': m_psnr.avg})
+
+		accelerator.print(f'val_loss: {m_l1_loss.avg}, val_ssim: {m_ssim.avg}, val_ssim: {m_psnr.avg}')
 		return m_l1_loss.avg, m_ssim.avg, m_psnr.avg
 
