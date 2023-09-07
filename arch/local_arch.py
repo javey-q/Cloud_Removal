@@ -104,10 +104,13 @@ class Local_Base():
             self.forward(imgs)
 
 class Local_Base_CR():
-    def convert(self, *args, train_size, sar_size, mask_size, **kwargs):
+    def convert(self, *args, train_size, sar_size, mask_size, useid, **kwargs):
         replace_layers(self, *args, train_size=train_size, **kwargs)
         imgs = torch.rand(train_size)
         sars = torch.rand(sar_size)
         # masks = torch.rand(mask_size)
         with torch.no_grad():
-            self.forward(imgs, sars)
+            if not useid:
+                self.forward(imgs, sars)
+            else:
+                self.forward(imgs, sars, torch.rand(1))

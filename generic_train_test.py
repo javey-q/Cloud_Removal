@@ -86,7 +86,7 @@ class Generic_train_test():
 						self.optimizer.zero_grad()
 						loss_all = 0
 						if self.use_id:
-							pred = self.net(image, sar, image_id)
+							pred = self.net(image, sar, image_id, accelerator)
 						elif self.sar_trans:
 							pred = self.net(sar)
 						else:
@@ -144,8 +144,7 @@ class Generic_train_test():
 				wandb.log({'train_loss': m_l1_loss.avg, 'train_ssim': m_ssim.avg, 'train_psnr': m_psnr.avg})
 
 			accelerator.wait_for_everyone()
-
-			val_loss, val_ssim, val_psnr = self.validate(epoch, accelerator, run)
+ 			val_loss, val_ssim, val_psnr = self.validate(epoch, accelerator, run)
 			metrics_dict = {'val_loss':val_loss, 'val_ssim':val_ssim, 'val_psnr':val_psnr}
 			checkpoint_dict = {'epoch': epoch, 'model': accelerator.unwrap_model(self.net).state_dict(),
 							   'optimizer': self.optimizer.state_dict(), 'lr_scheduler': self.scheduler.state_dict(), 'metrics': metrics_dict}
@@ -187,7 +186,7 @@ class Generic_train_test():
 						image_id = batch['image_id']
 
 					if self.use_id:
-						pred = self.net(image, sar, image_id)
+						pred = self.net(image, sar, image_id, accelerator)
 					elif self.sar_trans:
 						pred = self.net(sar)
 					else:

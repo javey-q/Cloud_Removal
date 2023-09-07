@@ -31,7 +31,7 @@ class SimpleGate(nn.Module):
         return x1 * x2
 
 class NAFBlock(nn.Module):
-    def __init__(self, c, DW_Expand=2, FFN_Expand=2, drop_out_rate=0., emb_channels=0):
+    def __init__(self, c, DW_Expand=2, FFN_Expand=2, emb_channels=0, drop_out_rate=0.):
         super().__init__()
         dw_channel = c * DW_Expand
         if emb_channels!=0:
@@ -111,7 +111,7 @@ def nonlinearity(x):
     # swish
     return x*torch.sigmoid(x)
 
-def image_id_embedding(image_id, dim, max_period=10000, repeat_only=False):
+def image_id_embedding(image_id, dim, max_period=10000, repeat_only=False, accelerator=None):
     """
     Create sinusoidal timestep embeddings.
     :param timesteps: a 1-D Tensor of N indices, one per batch element.
@@ -124,7 +124,9 @@ def image_id_embedding(image_id, dim, max_period=10000, repeat_only=False):
         half = dim // 2
         freqs = torch.exp(
             -math.log(max_period) * torch.arange(start=0, end=half, dtype=torch.float32) / half
-        ).to(device=image_id.device)
+        )
+        if accelerator!=None:
+            freqs = freqs.to(device=accelerator.device)
         args = image_id[:, None].float() * freqs[None]
         embedding = torch.cat([torch.cos(args), torch.sin(args)], dim=-1)
         if dim % 2:
@@ -173,7 +175,7 @@ class NAF_ID_Net(nn.Module):
         self.sar_first_decoders = nn.ModuleList()
 
         block_name = block_type + 'Block'
-        block_cls = find_class_in_module(block_name, 'arch.NAF_CR_net')
+        block_cls = find_class_in_module(block_name, 'arch.NAF_ID_CR_net')
 
         # self.sgfa_module1 = SGFA(kernel_size=1, stride=1, rate=1, softmax_scale=10.0)
         # self.sgfa_module2 = SGFA(kernel_size=3, stride=1, rate=2, softmax_scale=10.0)
@@ -208,7 +210,6 @@ class NAF_ID_Net(nn.Module):
         self.optical_middle_last_blk = block_cls(optical_chan, optical_dw_expand, optical_ffn_expand, id_embed_dim)
 
         for num in optical_dec_blks:
-            id_embed_dim = id_embed_dim // 2
             self.optical_ups.append(
                 nn.Sequential(
                     nn.Conv2d(optical_chan, optical_chan * 2, 1, bias=False),
@@ -248,7 +249,6 @@ class NAF_ID_Net(nn.Module):
         self.sar_middle_last_blk = block_cls(sar_chan, sar_dw_expand, sar_ffn_expand, id_embed_dim)
 
         for num in sar_dec_blks:
-            id_embed_dim = id_embed_dim // 2
             self.sar_ups.append(
                 nn.Sequential(
                     nn.Conv2d(sar_chan, sar_chan * 2, 1, bias=False),
@@ -264,10 +264,9 @@ class NAF_ID_Net(nn.Module):
                     *[block_cls(sar_chan, sar_dw_expand, sar_ffn_expand) for _ in range(num-1)]
                 )
             )
-
         self.padder_size = 2 ** len(self.optical_encoders)
 
-    def forward(self, optical, sar, image_id=None):
+    def forward(self, optical, sar, image_id=None, accelerator=None):
     # def forward(self, input):
     #     optical, sar = input[0], input[1]
         B, C, H, W = optical.shape
@@ -277,7 +276,7 @@ class NAF_ID_Net(nn.Module):
         optical_x = self.optical_intro(optical)
         sar_x = self.sar_intro(sar)
 
-        id_emb = image_id_embedding(image_id, self.model_channels, repeat_only=False)
+        id_emb = image_id_embedding(image_id, self.model_channels, repeat_only=False, accelerator=accelerator)
         emb = self.id_embed(id_emb)
 
         optical_encs = []
@@ -310,14 +309,14 @@ class NAF_ID_Net(nn.Module):
         i = 0
         for optical_first_decoder, optical_decoder, optical_up, optical_enc_skip, sar_first_decoder, sar_decoder, sar_up, sar_enc_skip in \
                 zip(self.optical_first_decoders, self.optical_decoders, self.optical_ups, optical_encs[::-1], self.sar_first_decoders, self.sar_decoders, self.sar_ups, sar_encs[::-1]):
-            optical_x = optical_first_decoder(optical_x, emb)
             optical_x = optical_up(optical_x)
             optical_x = optical_x + optical_enc_skip
+            optical_x = optical_first_decoder(optical_x, emb)
             optical_x = optical_decoder(optical_x)
 
-            sar_x = sar_first_decoder(sar_x, emb)
             sar_x = sar_up(sar_x)
             sar_x = sar_x + sar_enc_skip
+            sar_x = sar_first_decoder(sar_x, emb)
             sar_x = sar_decoder(sar_x)
             i += 1
             # if i == 2:
@@ -328,7 +327,6 @@ class NAF_ID_Net(nn.Module):
         output = self.output_layer(fusion)
 
         output = output + optical
-
         return output[:, :, :H, :W]
 
     def check_image_size(self, x):
@@ -348,7 +346,7 @@ class NAF_ID_Local_CR(Local_Base_CR, NAF_ID_Net):
 
         self.eval()
         with torch.no_grad():
-            self.convert(base_size=base_size, train_size=train_size, sar_size=sar_size, mask_size=mask_size, fast_imp=fast_imp)
+            self.convert(base_size=base_size, train_size=train_size, sar_size=sar_size, mask_size=mask_size, useid=True, fast_imp=fast_imp)
 
 def parse_args():
     parser = argparse.ArgumentParser()
