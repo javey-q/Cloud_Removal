@@ -127,6 +127,8 @@ def image_id_embedding(image_id, dim, max_period=10000, repeat_only=False, accel
         )
         if accelerator!=None:
             freqs = freqs.to(device=accelerator.device)
+        else:
+            freqs = freqs.to(device=image_id.device)
         args = image_id[:, None].float() * freqs[None]
         embedding = torch.cat([torch.cos(args), torch.sin(args)], dim=-1)
         if dim % 2:

@@ -1,0 +1,102 @@
+Project: Rsipac_CR
+Experiment:
+  name: &name NAF_CR_Refine_5:1_320
+  checkpoint_dir: !!python/object/apply:os.path.join ["./experiments", *name, "checkpoints"]
+  result_dir: !!python/object/apply:os.path.join ["./experiments", *name, "results"]
+  log_dir:
+  resume:
+#    resume_epoch: 50
+#    resume_ckpt: checkpoint_epoch_100.pth
+#    resume_wandb: 16q8xi38
+#    resume_addition: true  # modification max epoch
+
+infer_dir:  !!python/object/apply:os.path.join ["./infer", *name, 'pred']
+
+manual_seed: 42
+Accelerator:
+  gradient_accumulation_steps: 1
+
+datasets:
+  train:
+    name: Real_CR
+    phase: train
+    root:  ../Dataset/Rsipac/train_320
+    meta_info: ../Dataset/Rsipac/train_320/train_val_list.csv
+    io_backend:
+      type: disk
+    repeat: 1
+
+    # image settings
+    use_cloudmask: false
+    cloud_threshold: 0.2
+    random_crop: true
+    base_size: 320
+    crop_size: 256
+
+    # dataloader
+    batch_size: 1
+    use_shuffle: true
+
+  val:
+    name: Real_CR
+    phase: val
+    root: ../Dataset/Rsipac/train_256
+    meta_info: ../Dataset/Rsipac/train_256/train_val_list.csv
+    io_backend:
+      type: disk
+
+    # image settings
+    use_cloudmask: false
+    cloud_threshold: 0.2
+    random_crop: false
+    base_size: 256
+
+    # dataloader
+    batch_size: 2
+
+#  val_2:
+network_g:
+  name: NAF_CR_Net
+  block_type: NAF
+  optical_channel: 3
+  sar_channel: 2
+  output_channel: 3
+
+  optical_width: 64 # 64
+  optical_dw_expand: 2
+  optical_ffn_expand: 2
+  optical_enc_blks: [2, 2, 4, 8] # 28
+  optical_middle_blk_num: 12
+  optical_dec_blks: [2, 2, 4, 8]
+
+  sar_width: 64 # 32
+  sar_dw_expand: 2
+  sar_ffn_expand: 2
+  sar_enc_blks: [2, 2, 4, 8] # 28
+  sar_middle_blk_num: 12
+  sar_dec_blks: [2, 2, 4, 8]
+
+
+train:
+  epochs: 150
+  optimizer_g:
+    type: AdamW
+    args:
+      lr: !!float 1e-4
+      weight_decay: 0.
+      betas: [0.9, 0.9]
+  scheduler:
+    type: TrueCosineAnnealingLR
+    args:
+      T_max: 150  # step
+      eta_min: !!float 1e-7
+  loss_funs:
+    pixel: l1
+    ssim: ssim
+  loss_weights: [1, 5]
+
+save_epoch_freq: 10
+log_step_freq: 100
+visual_step_freq: 1000
+valid_visual_step_freq: 1000
+

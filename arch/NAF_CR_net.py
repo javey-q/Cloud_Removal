@@ -16,9 +16,9 @@ import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .arch_util import LayerNorm2d, find_class_in_module
-from .local_arch import  Local_Base_CR
-from .sgfa import SGFA
+from arch.arch_util import LayerNorm2d, find_class_in_module
+from arch.local_arch import  Local_Base_CR
+from arch.sgfa import SGFA
 
 import argparse
 from utils.parser_option import parse_option
@@ -329,11 +329,11 @@ class NAF_Local_CR(Local_Base_CR, NAF_Net):
 
         self.eval()
         with torch.no_grad():
-            self.convert(base_size=base_size, train_size=train_size, sar_size=sar_size, mask_size=mask_size, fast_imp=fast_imp)
+            self.convert(base_size=base_size, train_size=train_size, sar_size=sar_size, mask_size=mask_size, useid=False,fast_imp=fast_imp)
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--opt', type=str, default='../options/NAF_simple_crop_config.yml',
+    parser.add_argument('--opt', type=str, default='../options/NAF_refine_crop_multi_config.yml',
                         help='the path of options file.')
     args = parser.parse_args()
     opt = parse_option(args.opt)
@@ -346,6 +346,9 @@ if __name__ == '__main__':
     opt_network = opt['network_g']
     opt_network['block_type'] = 'NAF'
     opt_network.pop('name')
+    change_dataset = opt['train']['change_dataset'] if 'change_dataset' in opt['train'] else None
+    print(change_dataset)
+
     model = NAF_Local_CR(**opt_network).cuda()
 
     cloudy = torch.rand(1, 3, 256, 256).cuda()
