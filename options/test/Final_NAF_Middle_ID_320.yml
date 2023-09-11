@@ -1,0 +1,49 @@
+Project: Final_Rsipac_CR
+Experiment:
+  name: &name Final_NAF_Middle_ID_320
+  checkpoint:  !!python/object/apply:os.path.join ["./experiments", *name, "checkpoints", "checkpoint_best.pth"]
+  target_size: 256
+
+infer_dir:  !!python/object/apply:os.path.join ["./infer", *name, 'pred']
+
+datasets:
+  test:
+    name: Test_CR
+    phase: test
+    root: /data/testB_256/
+    meta_info: /data/testB_256/test_list.csv
+    io_backend:
+      type: disk
+
+    # image settings
+    use_id: true
+    use_cloudmask: false
+    random_crop: false
+    base_size: 256
+
+    # dataloader
+    batch_size: 1
+
+use_id: true
+network:
+  name: NAF_ID_Local_CR
+  block_type: NAF
+  optical_channel: 3
+  sar_channel: 2
+  output_channel: 3
+
+  optical_width: 64 # 64
+  optical_dw_expand: 2
+  optical_ffn_expand: 2
+  optical_enc_blks: [2, 2, 4, 8] # 28
+  optical_middle_blk_num: 12
+  optical_dec_blks: [2, 2, 4, 8]
+
+  sar_width: 64 # 32
+  sar_dw_expand: 2
+  sar_ffn_expand: 2
+  sar_enc_blks: [2, 2, 4, 8] # 28
+  sar_middle_blk_num: 12
+  sar_dec_blks: [2, 2, 4, 8]
+
+  model_channels: 256
