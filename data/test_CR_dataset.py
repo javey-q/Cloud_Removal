@@ -23,6 +23,7 @@ class Test_CR_Dataset(Dataset):
         self.io_backend_opt = opt['io_backend']
 
         self.use_cloudmask =  opt['use_cloudmask'] if 'use_cloudmask' in opt else False
+        self.use_id = opt['use_id'] if 'use_id' in opt else False
 
         self.base_size = opt['base_size']
 
@@ -37,9 +38,16 @@ class Test_CR_Dataset(Dataset):
     # TODO： augmentation for training
     def __getitem__(self, index):
         fileID = self.filelist[index]
-        sar_VH_path = os.path.join(self.root, 'SAR', 'VH', fileID.replace('S2', 'S1'))
-        sar_VV_path = os.path.join(self.root, 'SAR', 'VV', fileID.replace('S2', 'S1'))
-        cloudy_path = os.path.join(self.root, 'opt_cloudy', fileID)
+        if 'meta_info' in self.opt and self.opt['meta_info'] is not None:
+            sar_VH_path = os.path.join(self.root, fileID[1], 'VH', fileID[4].replace('S2', 'S1'))
+            sar_VV_path = os.path.join(self.root, fileID[1], 'VV', fileID[4].replace('S2', 'S1'))
+            cloudy_path = os.path.join(self.root, fileID[3], fileID[4])
+            file_name = fileID[4]
+        else:
+            sar_VH_path = os.path.join(self.root, 'SAR', 'VH', fileID.replace('S2', 'S1'))
+            sar_VV_path = os.path.join(self.root, 'SAR', 'VV', fileID.replace('S2', 'S1'))
+            cloudy_path = os.path.join(self.root, 'opt_cloudy', fileID)
+            file_name = fileID
 
         if self.file_client is None:
             self.file_client = FileClient(
@@ -75,9 +83,14 @@ class Test_CR_Dataset(Dataset):
         # mean
         results = {'sar': img_sar,
                    'opt_cloudy':img_cloudy,
-                   'file_name': fileID}
+                   'file_name': file_name}
         if self.use_cloudmask:
             results['cloud_mask'] = img_mask
+
+        if self.use_id:
+            image_id = int(fileID[-1])
+            image_id = torch.tensor(image_id)
+            results['image_id'] = image_id
 
         return results
 

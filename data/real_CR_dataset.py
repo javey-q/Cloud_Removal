@@ -33,12 +33,35 @@ class Real_CR_Dataset(Dataset):
         self.base_size = opt['base_size']
         if self.random_crop:
             self.crop_size = opt['crop_size']
+        self.ssim_filter = opt['ssim_filter'] if 'ssim_filter' in opt else False
+        self.weighted_sampler = opt['weighted_sampler'] if 'weighted_sampler' in opt else None
 
         if 'meta_info' in self.opt and self.opt['meta_info'] is not None:
-            self.filelist = get_filelists_from_csv(opt['meta_info'], self.phase)
+            filelist = get_filelists_from_csv(opt['meta_info'], self.phase)
+            if self.ssim_filter:
+                filter_filelist = []
+                for file in filelist:
+                    # ssim
+                    if float(file[5]) >= self.ssim_filter:
+                        filter_filelist.append(file)
+                self.filelist = filter_filelist
+                print('filter list num: ', len(filter_filelist))
+            else:
+                self.filelist = filelist
         else:
             # todo  paired_paths_from_folder
             pass
+
+        if self.weighted_sampler != None:
+            self.sampler_weights = []
+            for data in self.filelist:
+                ssim = float(data[5])
+                reversal = self.weighted_sampler['reversal'] if 'reversal' in self.weighted_sampler else False
+                if reversal:
+                    weight = 1 / ssim
+                else:
+                    weight = ssim if ssim > self.weighted_sampler['sampler_filter'] else 0
+                self.sampler_weights.append(weight)
 
         self.n_images = len(self.filelist)
 
@@ -49,8 +72,6 @@ class Real_CR_Dataset(Dataset):
         sar_VV_path = os.path.join(self.root, fileID[1], 'VV', fileID[4].replace('S2', 'S1'))
         clear_path = os.path.join(self.root, fileID[2], fileID[4])
         cloudy_path = os.path.join(self.root, fileID[3], fileID[4])
-        if self.use_id:
-            image_id = int(fileID[7])
 
         if self.file_client is None:
             self.file_client = FileClient(
@@ -98,6 +119,7 @@ class Real_CR_Dataset(Dataset):
         # if self.use_cloudmask:
         #     results['cloud_mask'] = tensor_mask
         if self.use_id:
+            image_id = int(fileID[7])
             image_id = torch.tensor(image_id)
             results['image_id'] = image_id
 
