@@ -1,6 +1,6 @@
 Project: Final_Rsipac_CR
 Experiment:
-  name: &name Final_NAF_Middle_ID_320
+  name: &name Final_NAF_Middle_ID_Multi
   checkpoint_dir: !!python/object/apply:os.path.join ["./experiments", *name, "checkpoints"]
   result_dir: !!python/object/apply:os.path.join ["./experiments", *name, "results"]
   log_dir:
@@ -20,8 +20,8 @@ datasets:
   train:
     name: Real_CR
     phase: train
-    root:  /data/train_320
-    meta_info: /data/train_320/train_val_list.csv
+    root:  /data/train_256
+    meta_info: /data/train_256/train_val_list.csv
     io_backend:
       type: disk
     repeat: 1
@@ -30,19 +30,22 @@ datasets:
     use_id: true
     use_cloudmask: false
     cloud_threshold: 0.2
-    random_crop: true
-    base_size: 320
-    crop_size: 256
+    random_crop: false
+    base_size: 256
+    crop_size: 192
 
     # dataloader
-    batch_size: 6
+    batch_size: 8
     use_shuffle: true
+    weighted_sampler:
+      sampler_ratio: 0.7
+      sampler_filter: 0.4
 
   val:
     name: Real_CR
     phase: val
-    root: /data/train_320
-    meta_info: /data/train_320/train_val_list.csv
+    root: /data/train_256
+    meta_info: /data/train_256/train_val_list.csv
     io_backend:
       type: disk
 
@@ -65,22 +68,21 @@ network_g:
   sar_channel: 2
   output_channel: 3
 
-  optical_width: 56 # 64
+  optical_width: 64 # 64
   optical_dw_expand: 2
   optical_ffn_expand: 2
-  optical_enc_blks: [2, 4, 8] # 28
-  optical_middle_blk_num: 8
-  optical_dec_blks: [2, 4, 8]
+  optical_enc_blks: [2, 2, 4, 8] # 28
+  optical_middle_blk_num: 12
+  optical_dec_blks: [2, 2, 4, 8]
 
-  sar_width: 56 # 32
+  sar_width: 64 # 32
   sar_dw_expand: 2
   sar_ffn_expand: 2
-  sar_enc_blks: [2, 4, 8] # 28
-  sar_middle_blk_num: 8
-  sar_dec_blks: [2, 4, 8]
+  sar_enc_blks: [2, 2, 4, 8] # 28
+  sar_middle_blk_num: 12
+  sar_dec_blks: [2, 2, 4, 8]
 
-  model_channels: 64
-
+  model_channels: 256
 
 train:
   epochs: 100
@@ -99,10 +101,33 @@ train:
     pixel: l1
     ssim: ssim
   loss_weights: [1, 5]
+  change_dataset:
+    epoch_16:
+      name: Real_CR
+      phase: train
+      root: /data/train_256
+      meta_info: /data/train_256/train_val_list.csv
+      io_backend:
+        type: disk
+      repeat: 1
+
+      # image settings
+      use_id: true
+      use_cloudmask: false
+      cloud_threshold: 0.2
+      random_crop: true
+      base_size: 256
+      crop_size: 192
+
+      # dataloader
+      batch_size: 8
+      use_shuffle: true
+      weighted_sampler:
+        sampler_ratio: 0.7
+        sampler_filter: 0.4
 
 valid_epoch_freq: 5
 save_epoch_freq: 10
 log_step_freq: 100
 visual_step_freq: 1000
 valid_visual_step_freq: 1000
-

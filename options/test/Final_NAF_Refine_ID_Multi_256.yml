@@ -1,6 +1,6 @@
 Project: Final_Rsipac_CR
 Experiment:
-  name: &name Final_NAF_Middle_ID_320
+  name: &name Final_NAF_Refine_ID_Multi_256
   checkpoint:  !!python/object/apply:os.path.join ["./experiments", *name, "checkpoints", "checkpoint_best.pth"]
   target_size: 256
 

@@ -16,8 +16,7 @@ if __name__ == '__main__':
     args = parse_args()
     experiment_name = args.opt.split('.')[0]
     print('experiment_name :'+ experiment_name)
-
-    refer_path = '../Dataset/Rsipac/test/opt_cloudy/'
+    refer_path = '/test/opt_cloudy/'
     infer_path = f'./infer/{experiment_name}/pred/'
     result_path = f'./infer/results/'
 

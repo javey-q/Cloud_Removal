@@ -124,6 +124,7 @@ def main(args):
 
             assert  cnt_output == 4, f'{cnt_output}!=4'
     print(cnt_output)
+    print(len(image_sets))
 
 
 if __name__ == '__main__':
