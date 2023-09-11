@@ -1,8 +1,10 @@
+# pytorch
 accelerate
-pytorch
 opencv-python
 tqdm
 wandb
 timm
 scipy
 einops
+pandas
+scikit-learn
