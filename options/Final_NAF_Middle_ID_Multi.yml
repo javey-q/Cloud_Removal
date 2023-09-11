@@ -123,7 +123,7 @@ train:
         sampler_ratio: 0.7
         sampler_filter: 0.4
 
-    epoch_31:
+    epoch_26:
       name: Real_CR
       phase: train
       root: /data/train_320
