@@ -10,6 +10,7 @@ from torchvision.utils import make_grid, save_image
 from utils import *
 from utils.metrics import *
 # from skimage.measure import compare_psnr
+from data import getLoader
 
 Train_test = False
 
@@ -43,6 +44,7 @@ class Generic_train_test():
 
 		self.sar_trans = opts['sar_trans'] if 'sar_trans' in opts else False
 		self.use_id = opts['use_id'] if 'use_id' in opts else False
+		self.change_dataset = opts['train']['change_dataset'] if 'change_dataset' in opts['train'] else None
 
 
 	def decode_input(self, data):
@@ -58,10 +60,16 @@ class Generic_train_test():
 			for metric in metrics:
 				wandb.define_metric(metric, step_metric="epoch")
 
-
 		accelerator.print(f"#Train dataset: {self.datasets_name[0]}")
 		accelerator.print('#Train image nums: ', len(self.train_loader)*self.opts['datasets']['train']['batch_size'])
 		for epoch in range(start_epoch+1, end_epoch+1):
+			cureent_epoch = f'epoch_{epoch}'
+			if self.change_dataset!=None and cureent_epoch in self.change_dataset.keys():
+				change_opt = self.change_dataset[cureent_epoch]
+				self.train_loader = accelerator.prepare(getLoader(change_opt))
+				accelerator.print('#Change dataet and image nums: ',
+								  len(self.train_loader) * self.opts['datasets']['train']['batch_size'])
+
 			batch_time = AverageMeter('Time', ':6.3f')
 			data_time = AverageMeter('Data', ':6.3f')
 			m_l1_loss = AverageMeter('Loss', ':.4e')
@@ -102,7 +110,7 @@ class Generic_train_test():
 								loss_ssim = 1 - SSIM(pred, label)
 							loss_all += loss_ssim * self.loss_weights[1]
 
-						loss_all.backward()
+						accelerator.backward(loss_all)
 
 						self.optimizer.step()
 						# self.scheduler.step()
@@ -144,18 +152,24 @@ class Generic_train_test():
 				wandb.log({'train_loss': m_l1_loss.avg, 'train_ssim': m_ssim.avg, 'train_psnr': m_psnr.avg})
 
 			accelerator.wait_for_everyone()
- 			val_loss, val_ssim, val_psnr = self.validate(epoch, accelerator, run)
-			metrics_dict = {'val_loss':val_loss, 'val_ssim':val_ssim, 'val_psnr':val_psnr}
+
+			valid_epoch_freq = self.opts['valid_epoch_freq'] if 'valid_epoch_freq' in self.opts else 1
+			if epoch==start_epoch or (epoch % valid_epoch_freq == 0) or (end_epoch - epoch < 5):
+				val_loss, val_ssim, val_psnr = self.validate(epoch, accelerator, run)
+				metrics_dict = {'val_loss':val_loss, 'val_ssim':val_ssim, 'val_psnr':val_psnr}
+
 			checkpoint_dict = {'epoch': epoch, 'model': accelerator.unwrap_model(self.net).state_dict(),
 							   'optimizer': self.optimizer.state_dict(), 'lr_scheduler': self.scheduler.state_dict(), 'metrics': metrics_dict}
 
 			if epoch % self.opts['save_epoch_freq'] == 0:
 				accelerator.save(checkpoint_dict, os.path.join(self.checkpoint_dir, f'checkpoint_epoch_{epoch}.pth'))
-			update_best = val_ssim > self.best_ssim
-			if update_best:
-				self.best_ssim = val_ssim
-				accelerator.print(f'Best valid ssim {self.best_ssim} saved at epoch {epoch}')
-				accelerator.save(checkpoint_dict, os.path.join(self.checkpoint_dir, f'checkpoint_best.pth'))
+
+			if epoch == start_epoch or (epoch % valid_epoch_freq == 0) or (end_epoch - epoch < 5):
+				update_best = val_ssim > self.best_ssim
+				if update_best:
+					self.best_ssim = val_ssim
+					accelerator.print(f'Best valid ssim {self.best_ssim} saved at epoch {epoch}')
+					accelerator.save(checkpoint_dict, os.path.join(self.checkpoint_dir, f'checkpoint_best.pth'))
 			# save last
 			accelerator.save(checkpoint_dict, os.path.join(self.checkpoint_dir, f'checkpoint_last.pth'))
 

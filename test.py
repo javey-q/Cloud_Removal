@@ -47,7 +47,8 @@ def main():
         #
         ckpt_path = opt['Experiment']['checkpoint']
         checkpoint = torch.load(ckpt_path, map_location=device)
-        net.load_state_dict(checkpoint['model'])
+        # net.load_state_dict(checkpoint['model'])
+        load_model_compile(net, checkpoint['model'])
 
         print(f'load checkpoint from {ckpt_path}')
     else:
@@ -56,7 +57,7 @@ def main():
     batch_time = AverageMeter('Time', ':6.3f', Summary.NONE)
     end = time.time()
 
-    use_gray = opt['network']['use_gray'] if 'use_gray' in opt['network'] else False
+    use_id = opt['use_id'] if 'use_id' in opt else False
     with torch.no_grad():
         with tqdm(total=len(test_loader),
                   desc=f'Test on {dataset_name}', unit='batch') as test_pbar:
@@ -64,10 +65,10 @@ def main():
                 image = batch['opt_cloudy'].to(device)
                 sar = batch['sar'].to(device)
                 img_name = batch['file_name']
-
-                if use_gray:
-                    pred, pred_gray = net(image, sar)
-                    pred = pred.detach().cpu()
+                if use_id:
+                    image_id = batch['image_id'].to(device)
+                if use_id:
+                    pred = net(image, sar, image_id).detach().cpu()
                 else:
                     pred = net(image, sar).detach().cpu()
 

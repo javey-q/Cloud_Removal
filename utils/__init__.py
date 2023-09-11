@@ -3,6 +3,15 @@ from enum import Enum
 from utils import lr_scheduler as lr_scheduler
 from .file_client import FileClient
 from .img_util import crop_border, imfrombytes, img2tensor, imwrite, tensor2img, padding
+import collections
+
+def load_model_compile(model, origin_dict, strict=True):
+    state_dict = collections.OrderedDict()
+    torch2_model_prefix = '_orig_mod.'
+    offset2 = len(torch2_model_prefix)
+    for key, value in origin_dict.items():
+        state_dict[key[offset2: len(key)]] = value
+    model.load_state_dict(state_dict, strict=strict)
 
 def get_optimizer(optimizer_cfg, optim_params):
     optimizer_type = optimizer_cfg['type']

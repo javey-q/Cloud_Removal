@@ -1,6 +1,6 @@
 Project: Rsipac_CR
 Experiment:
-  name: &name NAF_CR_Simple_refine_2:1_no_aug
+  name: &name NAF_CR_Refine_id_256
   checkpoint:  !!python/object/apply:os.path.join ["./experiments", *name, "checkpoints", "checkpoint_best.pth"]
   target_size: 256
 
@@ -10,18 +10,22 @@ datasets:
   test:
     name: Test_CR
     phase: test
-    root: /opt/disk/qjw/Cloud_Removal/Dataset/Rsipac/testB_256/
+    root: ../Dataset/Rsipac/testB_256/
     io_backend:
       type: disk
-    use_cloudmask: false
+
     # image settings
+    use_id: true
+    use_cloudmask: false
+    random_crop: false
     base_size: 256
 
     # dataloader
     batch_size: 1
 
+use_id: true
 network:
-  name: NAF_CR_Net
+  name: NAF_ID_Local_CR
   block_type: NAF
   optical_channel: 3
   sar_channel: 2
@@ -40,3 +44,5 @@ network:
   sar_enc_blks: [2, 2, 4, 8] # 28
   sar_middle_blk_num: 12
   sar_dec_blks: [2, 2, 4, 8]
+
+  model_channels: 256

@@ -1,13 +1,13 @@
 Project: Rsipac_CR
 Experiment:
-  name: &name NAF_CR_Refine_5:1_320
+  name: &name NAF_CR_Refine_Weighted_Sampler_320
   checkpoint_dir: !!python/object/apply:os.path.join ["./experiments", *name, "checkpoints"]
   result_dir: !!python/object/apply:os.path.join ["./experiments", *name, "results"]
   log_dir:
   resume:
 #    resume_epoch: 50
-#    resume_ckpt: checkpoint_epoch_100.pth
-#    resume_wandb: 16q8xi38
+    resume_ckpt: checkpoint_epoch_30.pth
+    resume_wandb: ovh1p5zc
 #    resume_addition: true  # modification max epoch
 
 infer_dir:  !!python/object/apply:os.path.join ["./infer", *name, 'pred']
@@ -21,7 +21,7 @@ datasets:
     name: Real_CR
     phase: train
     root:  ../Dataset/Rsipac/train_320
-    meta_info: ../Dataset/Rsipac/train_320/train_val_list.csv
+    meta_info: ../Dataset/Rsipac/train_320/train_val_list_new.csv
     io_backend:
       type: disk
     repeat: 1
@@ -36,6 +36,13 @@ datasets:
     # dataloader
     batch_size: 1
     use_shuffle: true
+    weighted_sampler:
+      reversal: true
+      sampler_ratio: 0.6
+      sampler_filter: 0.4
+
+#    ssim_filter: 0.7
+
 
   val:
     name: Real_CR

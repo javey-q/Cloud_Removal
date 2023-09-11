@@ -4,15 +4,21 @@ import csv
 from sklearn import model_selection
 import pandas as pd
 
-phase = 'train'
-data_root = r"D:\Dataset\Rsipac\train"
-data_slice= r"D:\Dataset\Rsipac\train_320"
-data_csv = r"D:\Dataset\Rsipac\train_320\train_val_list.csv"
+# phase = 'train'
+# data_root = "../Dataset/Rsipac/train"
+# data_slice= "../Dataset/Rsipac/train_320"
+# data_csv = "../Dataset/Rsipac/train_320/train_val_list.csv"
 
-# slice_size = 256
-# overlap_rate = 0
-slice_size = 320
-overlap_rate = 0.4
+# slice_size = 320
+# overlap_rate = 0.4
+
+phase = 'test'
+data_root = r"/root/autodl-tmp/Rsipac/testB"
+data_slice= r"/root/autodl-tmp/Rsipac/testB_256"
+data_csv = r"/root/autodl-tmp/Rsipac/testB_256/train_val_list.csv"
+
+slice_size = 256
+overlap_rate = 0
 
 if not os.path.exists(data_slice):
     if phase == 'train':
@@ -32,15 +38,16 @@ def crop_image(image, x1, y1, wh):
                min(x1 + wh, w) - wh:min(x1 + wh, w)
                ], min(x1 + wh,w) - wh, min(y1 + wh, h) - wh
 
-origin_list = pd.read_csv(os.path.join(data_root, 'train_val_list.csv'), names=['phase','SAR', 'opt_clear', 'opt_cloudy','img_name'])
-phase_id = 1 if phase == 'train' else 2
-image_sets = origin_list['img_name'].to_list()
-images_train = origin_list.loc[origin_list.phase == 1, 'img_name'].to_list()
-images_valid = origin_list.loc[origin_list.phase == 2, 'img_name'].to_list()
-
-# image_sets = os.listdir(os.path.join(data_root, 'opt_cloudy'))
-# images_train, images_valid = model_selection.train_test_split(image_sets, test_size=0.2, random_state=0)
-# print(images_valid)
+if phase == 'train':
+    origin_list = pd.read_csv(os.path.join(data_root, 'train_val_list.csv'), names=['phase','SAR', 'opt_clear', 'opt_cloudy','img_name'])
+    phase_id = 1 if phase == 'train' else 2
+    image_sets = origin_list['img_name'].to_list()
+    images_train = origin_list.loc[origin_list.phase == 1, 'img_name'].to_list()
+    images_valid = origin_list.loc[origin_list.phase == 2, 'img_name'].to_list()
+else:
+    image_sets = os.listdir(os.path.join(data_root, 'opt_cloudy'))
+    images_train, images_valid = model_selection.train_test_split(image_sets, test_size=0.2, random_state=0)
+    print(images_valid)
 
 with open(data_csv, 'w', newline='') as file:
     writer = csv.writer(file)
@@ -82,7 +89,10 @@ with open(data_csv, 'w', newline='') as file:
                         data = [1, 'SAR', 'opt_clear', 'opt_cloudy', output_name]
                     else:
                         data = [2, 'SAR', 'opt_clear', 'opt_cloudy', output_name]
-                    writer.writerow(data)
+                else:
+                    id = int(image_name.split('_')[1])
+                    data = [3, 'SAR', 'opt_clear', 'opt_cloudy', output_name, id]
+                writer.writerow(data)
 
         assert  cnt_output == 4, f'{cnt_output}!=4'
 print(cnt_output)

@@ -1,6 +1,6 @@
 Project: Rsipac_CR
 Experiment:
-  name: &name NAF_CR_Refine_Weighted_Sampler_320
+  name: &name NAF_CR_Refine_Middle_ID_Multi
   checkpoint_dir: !!python/object/apply:os.path.join ["./experiments", *name, "checkpoints"]
   result_dir: !!python/object/apply:os.path.join ["./experiments", *name, "results"]
   log_dir:
@@ -20,71 +20,72 @@ datasets:
   train:
     name: Real_CR
     phase: train
-    root:  ../Dataset/Rsipac/train_320
-    meta_info: ../Dataset/Rsipac/train_320/train_val_list_new.csv
+    root:  /root/autodl-tmp/Rsipac/train_256
+    meta_info: /root/autodl-tmp/Rsipac/train_256/train_val_list_new.csv
     io_backend:
       type: disk
     repeat: 1
 
     # image settings
+    use_id: true
     use_cloudmask: false
     cloud_threshold: 0.2
     random_crop: true
-    base_size: 320
+    base_size: 256
     crop_size: 256
 
     # dataloader
-    batch_size: 1
+    batch_size: 6
     use_shuffle: true
-    weighted_sampler:
-      sampler_ratio: 0.7
-      sampler_filter: 0.4
-
+#    weighted_sampler:
+#      sampler_ratio: 0.7
+#      sampler_filter: 0.4
 #    ssim_filter: 0.7
-
 
   val:
     name: Real_CR
     phase: val
-    root: ../Dataset/Rsipac/train_256
-    meta_info: ../Dataset/Rsipac/train_256/train_val_list.csv
+    root: /root/autodl-tmp/Rsipac/train_256
+    meta_info: /root/autodl-tmp/Rsipac/train_256/train_val_list_new.csv
     io_backend:
       type: disk
 
     # image settings
+    use_id: true
     use_cloudmask: false
     cloud_threshold: 0.2
     random_crop: false
     base_size: 256
 
     # dataloader
-    batch_size: 2
+    batch_size: 8
 
-#  val_2:
+use_id: true
 network_g:
-  name: NAF_CR_Net
+  name: NAF_ID_Local_CR
   block_type: NAF
   optical_channel: 3
   sar_channel: 2
   output_channel: 3
 
-  optical_width: 64 # 64
+  optical_width: 56 # 64
   optical_dw_expand: 2
   optical_ffn_expand: 2
-  optical_enc_blks: [2, 2, 4, 8] # 28
-  optical_middle_blk_num: 12
-  optical_dec_blks: [2, 2, 4, 8]
+  optical_enc_blks: [2, 4, 8] # 28
+  optical_middle_blk_num: 8
+  optical_dec_blks: [2, 4, 8]
 
-  sar_width: 64 # 32
+  sar_width: 56 # 32
   sar_dw_expand: 2
   sar_ffn_expand: 2
-  sar_enc_blks: [2, 2, 4, 8] # 28
-  sar_middle_blk_num: 12
-  sar_dec_blks: [2, 2, 4, 8]
+  sar_enc_blks: [2, 4, 8] # 28
+  sar_middle_blk_num: 8
+  sar_dec_blks: [2, 4, 8]
 
+  model_channels: 64
 
 train:
-  epochs: 150
+  epochs: 100
   optimizer_g:
     type: AdamW
     args:
@@ -94,15 +95,60 @@ train:
   scheduler:
     type: TrueCosineAnnealingLR
     args:
-      T_max: 150  # step
+      T_max: 100  # step
       eta_min: !!float 1e-7
   loss_funs:
     pixel: l1
     ssim: ssim
   loss_weights: [1, 5]
+  change_dataset:
+    epoch_11:
+      name: Real_CR
+      phase: train
+      root: /root/autodl-tmp/Rsipac/train_256
+      meta_info: /root/autodl-tmp/Rsipac/train_256/train_val_list_new.csv
+      io_backend:
+        type: disk
+      repeat: 1
 
+      # image settings
+      use_id: true
+      use_cloudmask: false
+      cloud_threshold: 0.2
+      random_crop: true
+      base_size: 256
+      crop_size: 192
+
+      # dataloader
+      batch_size: 10
+      use_shuffle: true
+      weighted_sampler:
+        sampler_ratio: 0.8
+        sampler_filter: 0.4
+
+      epoch_41:
+        name: Real_CR
+        phase: train
+        root: /root/autodl-tmp/Rsipac/train_320
+        meta_info: /root/autodl-tmp/Rsipac/train_320/train_val_list_new.csv
+        io_backend:
+          type: disk
+        repeat: 1
+
+        # image settings
+        use_id: true
+        use_cloudmask: false
+        cloud_threshold: 0.2
+        random_crop: true
+        base_size: 320
+        crop_size: 256
+
+        # dataloader
+        batch_size: 6
+        use_shuffle: true
+
+valid_epoch_freq: 1
 save_epoch_freq: 10
 log_step_freq: 100
 visual_step_freq: 1000
 valid_visual_step_freq: 1000
-

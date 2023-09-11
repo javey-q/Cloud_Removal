@@ -16,7 +16,7 @@ from tqdm import tqdm
 
 from arch import get_arch
 from data import getLoaders
-from utils import get_optimizer, get_scheduler
+from utils import get_optimizer, get_scheduler, load_model_compile
 from utils.fakeWandbRun import FakeRun
 from utils.parser_option import parse_option
 from utils.misc import get_latest_run, set_random_seed
@@ -110,8 +110,11 @@ def main():
         # metrics_ssim = torch.tensor([accelerator.process_index]).to(accelerator.device)
         # metrics = {'val_loss': np.inf, 'val_ssim': 0, 'val_psnr': 0}
         # if accelerator.is_local_main_process:
+
         checkpoint = torch.load(ckpt_path ,map_location='cpu')
-        net.load_state_dict(checkpoint['model'])
+        # net.load_state_dict(checkpoint['model'])
+        load_model_compile(net, checkpoint['model'])
+
         start_epoch = resume_opt['resume_epoch'] if 'resume_epoch' in  resume_opt and resume_opt['resume_epoch'] \
             else checkpoint['epoch']
         if 'resume_addition' in  resume_opt and resume_opt['resume_addition']:
