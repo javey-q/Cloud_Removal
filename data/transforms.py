@@ -4,6 +4,8 @@
 # Modified from BasicSR (https://github.com/xinntao/BasicSR)
 # Copyright 2018-2020 BasicSR Authors
 # ------------------------------------------------------------------------
+import os
+import random
 import cv2
 import random
 from cv2 import rotate
@@ -28,6 +30,37 @@ def mod_crop(img, scale):
     else:
         raise ValueError(f'Wrong img ndim: {img.ndim}.')
     return img
+
+def random_cloud_paste(original_image, cloud_dict, paste_level):
+    if paste_level == 0:
+        return original_image
+    else:
+        # 获取原始图像的宽度和高度
+        original_height, original_width, _ = original_image.shape
+        # 创建一个图像副本，用于覆盖
+        result_image = original_image.copy()
+        cloud_sample = random.sample(cloud_dict.keys(), paste_level)
+
+        for cloud_name in cloud_sample:
+            cloud_image = cloud_dict[cloud_name]
+            # 获取透明PNG图像的宽度和高度
+            cloud_height, cloud_width, _ = cloud_image.shape
+
+            # 计算随机位置
+            x_position = random.randint(0, original_width - cloud_width)
+            y_position = random.randint(0, original_height - cloud_height)
+
+            # 提取透明PNG图像的Alpha通道
+            alpha_channel = cloud_image[:, :, 3]
+
+            # 将透明PNG图像覆盖到原始图像的随机位置
+            for c in range(0, 3):
+                result_image[y_position:y_position + cloud_height, x_position:x_position + cloud_width, c] = \
+                    result_image[y_position:y_position + cloud_height, x_position:x_position + cloud_width, c] * \
+                    (1 - alpha_channel / 255.0) + \
+                    cloud_image[:, :, c] * (alpha_channel / 255.0)
+        return result_image
+
 
 
 def paired_random_crop(opt, imgs, patch_size, flows=None):

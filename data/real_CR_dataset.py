@@ -10,7 +10,7 @@ import torch
 import argparse
 import cv2
 from utils.parser_option import parse_option
-from data.transforms import paired_random_crop, augment
+from data.transforms import paired_random_crop, augment, random_cloud_paste
 
 class Real_CR_Dataset(Dataset):
     def __init__(self, opt):
@@ -33,8 +33,17 @@ class Real_CR_Dataset(Dataset):
         self.base_size = opt['base_size']
         if self.random_crop:
             self.crop_size = opt['crop_size']
-        self.ssim_filter = opt['ssim_filter'] if 'ssim_filter' in opt else False
+
         self.weighted_sampler = opt['weighted_sampler'] if 'weighted_sampler' in opt else None
+        self.cloud_paste =  opt['cloud_paste'] if 'cloud_paste' in opt else None
+
+        if self.cloud_paste != None:
+            cloud_dir = os.path.join(self.root, 'cloud')
+            cloud_sets = os.listdir(cloud_dir)
+            self.cloud_dict = {}
+            for cloud_name in cloud_sets:
+                cloud_path = os.path.join(cloud_dir, cloud_name)
+                self.cloud_dict['cloud_name'] = cv2.imread(cloud_path, cv2.IMREAD_UNCHANGED)
 
         if 'meta_info' in self.opt and self.opt['meta_info'] is not None:
             filelist = get_filelists_from_csv(opt['meta_info'], self.phase)
@@ -93,9 +102,38 @@ class Real_CR_Dataset(Dataset):
         #     mask_bytes = self.file_client.get(mask_path, 'mask')
         #     img_mask = imfrombytes(mask_bytes, flag='grayscale', float32=True)
 
+        #  cloud paste
+        if self.cloud_paste != None:
+            ssim = float(fileID[5])
+            if self.cloud_paste == 'mild':
+                if ssim > 0.8:
+                    level = 1
+                    img_cloudy = random_cloud_paste(img_cloudy, self.cloud_dict, level)
+            elif self.cloud_paste == 'moderate':
+                if ssim > 0.9:
+                    level = 2
+                elif ssim > 0.8:
+                    level = 1
+                else:
+                    level = 0
+                img_cloudy = random_cloud_paste(img_cloudy, self.cloud_dict, level)
+            elif self.cloud_paste == 'severe':
+                if ssim > 0.9:
+                    level = 3
+                elif ssim > 0.8:
+                    level = 2
+                elif ssim > 0.8:
+                    level = 1
+                else:
+                    level = 0
+                img_cloudy = random_cloud_paste(img_cloudy, self.cloud_dict, level)
+            else:
+                raise 'cloud_paste set error'
+
         # random crop
         if self.random_crop and self.base_size - self.crop_size > 0:
             img_sar, img_clear, img_cloudy = paired_random_crop(self.opt, [img_sar, img_clear, img_cloudy], self.crop_size)
+
 
         # flip, rotation
         trans_sar, trans_clear, trans_cloudy = augment([img_sar, img_clear, img_cloudy], self.use_flip,
@@ -119,7 +157,7 @@ class Real_CR_Dataset(Dataset):
         # if self.use_cloudmask:
         #     results['cloud_mask'] = tensor_mask
         if self.use_id:
-            image_id = int(fileID[7])
+            image_id = int(fileID[-1])
             image_id = torch.tensor(image_id)
             results['image_id'] = image_id
 
