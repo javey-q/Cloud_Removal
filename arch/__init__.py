@@ -4,6 +4,7 @@ from arch.NAF_CR_net import NAF_Local_CR
 from arch.NAF_Trans_net import NAF_Trans_Net
 from arch.NAF_SGFA_CR_net import NAF_SGFA_Local_CR
 from arch.NAF_ID_CR_net import NAF_ID_Local_CR
+from arch.NAF_Test_CR_net import NAF_Test_Local_CR
 
 def get_arch(net_cfg):
     if net_cfg['name'] == 'GLF_CR_Net':
@@ -17,6 +18,9 @@ def get_arch(net_cfg):
     elif net_cfg['name'] == 'NAF_ID_Local_CR':
         net_cfg.pop('name')
         return NAF_ID_Local_CR(**net_cfg)
+    elif net_cfg['name'] == 'NAF_Test_Local_CR':
+        net_cfg.pop('name')
+        return NAF_Test_Local_CR(**net_cfg)
     elif net_cfg['name'] == 'NAF_Trans_Net':
         net_cfg.pop('name')
         return NAF_Trans_Net(**net_cfg)

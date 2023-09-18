@@ -224,7 +224,6 @@ class NAF_ID_Net(nn.Module):
             )
             self.optical_decoders.append(
                 nn.Sequential(
-                    block_cls(optical_chan, optical_dw_expand, optical_ffn_expand, id_embed_dim),
                     *[block_cls(optical_chan, optical_dw_expand, optical_ffn_expand) for _ in range(num-1)]
                 )
             )
@@ -246,7 +245,7 @@ class NAF_ID_Net(nn.Module):
         self.sar_middle_first_blk = block_cls(sar_chan, sar_dw_expand, sar_ffn_expand, id_embed_dim)
         self.sar_middle_blks = \
             nn.Sequential(
-                *[block_cls(sar_chan, sar_dw_expand, sar_ffn_expand) for _ in range(sar_middle_blk_num)],
+                *[block_cls(sar_chan, sar_dw_expand, sar_ffn_expand) for _ in range(sar_middle_blk_num-2)],
             )
         self.sar_middle_last_blk = block_cls(sar_chan, sar_dw_expand, sar_ffn_expand, id_embed_dim)
 
@@ -305,6 +304,7 @@ class NAF_ID_Net(nn.Module):
         sar_x = self.sar_middle_first_blk(sar_x, emb)
         sar_x = self.sar_middle_blks(sar_x)
         sar_x = self.sar_middle_last_blk(sar_x, emb)
+
 
         # mask_s = nn.functional.interpolate(mask, (optical_x.shape[2], optical_x.shape[3]))
         # optical_x = self.sgfa_module1(optical_x, sar_x, mask_s)
