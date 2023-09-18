@@ -21,7 +21,7 @@ datasets:
     name: Real_CR
     phase: train
     root:  /root/autodl-tmp/Rsipac/train_256
-    meta_info: /root/autodl-tmp/Rsipac/train_256/train_val_list_new.csv
+    meta_info: /root/autodl-tmp/Rsipac/train_256/train_val_list.csv
     io_backend:
       type: disk
     repeat: 1
@@ -35,7 +35,7 @@ datasets:
     crop_size: 192
 
     # dataloader
-    batch_size: 6
+    batch_size: 8
     use_shuffle: true
     weighted_sampler:
       sampler_ratio: 0.7
@@ -46,7 +46,7 @@ datasets:
     name: Real_CR
     phase: val
     root: /root/autodl-tmp/Rsipac/train_256
-    meta_info: /root/autodl-tmp/Rsipac/train_256/train_val_list_new.csv
+    meta_info: /root/autodl-tmp/Rsipac/train_256/train_val_list.csv
     io_backend:
       type: disk
 
@@ -58,7 +58,7 @@ datasets:
     base_size: 256
 
     # dataloader
-    batch_size: 8
+    batch_size: 12
 
 use_id: true
 network_g:
@@ -68,14 +68,14 @@ network_g:
   sar_channel: 2
   output_channel: 3
 
-  optical_width: 56 # 64
+  optical_width: 64 # 64
   optical_dw_expand: 2
   optical_ffn_expand: 2
   optical_enc_blks: [2, 4, 8] # 28
   optical_middle_blk_num: 8
   optical_dec_blks: [2, 4, 8]
 
-  sar_width: 56 # 32
+  sar_width: 64 # 32
   sar_dw_expand: 2
   sar_ffn_expand: 2
   sar_enc_blks: [2, 4, 8] # 28
@@ -102,11 +102,11 @@ train:
     ssim: ssim
   loss_weights: [1, 5]
   change_dataset:
-    epoch_21:
+    epoch_26:
       name: Real_CR
       phase: train
       root: /root/autodl-tmp/Rsipac/train_256
-      meta_info: /root/autodl-tmp/Rsipac/train_256/train_val_list_new.csv
+      meta_info: /root/autodl-tmp/Rsipac/train_256/train_val_list.csv
       io_backend:
         type: disk
       repeat: 1
@@ -123,12 +123,15 @@ train:
       # dataloader
       batch_size: 10
       use_shuffle: true
+      weighted_sampler:
+        sampler_ratio: 0.8
+        sampler_filter: 0.3
 
-      epoch_51:
+      epoch_61:
         name: Real_CR
         phase: train
         root: /root/autodl-tmp/Rsipac/train_256
-        meta_info: /root/autodl-tmp/Rsipac/train_256/train_val_list_new.csv
+        meta_info: /root/autodl-tmp/Rsipac/train_256/train_val_list.csv
         io_backend:
           type: disk
         repeat: 1

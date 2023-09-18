@@ -1,6 +1,6 @@
 Project: Rsipac_CR
 Experiment:
-  name: &name NAF_Middle_ID_Cloudaug_Multi
+  name: &name NAF_Middle_Test_ID_Cloudaug_Multi
   checkpoint_dir: !!python/object/apply:os.path.join ["./experiments", *name, "checkpoints"]
   result_dir: !!python/object/apply:os.path.join ["./experiments", *name, "results"]
   log_dir:
@@ -35,7 +35,7 @@ datasets:
     crop_size: 192
 
     # dataloader
-    batch_size: 8
+    batch_size: 12
     use_shuffle: true
     weighted_sampler:
       sampler_ratio: 0.7
@@ -58,11 +58,11 @@ datasets:
     base_size: 256
 
     # dataloader
-    batch_size: 12
+    batch_size: 16
 
 use_id: true
 network_g:
-  name: NAF_ID_Local_CR
+  name: NAF_Test_Local_CR
   block_type: NAF
   optical_channel: 3
   sar_channel: 2
@@ -73,15 +73,14 @@ network_g:
   optical_ffn_expand: 2
   optical_enc_blks: [2, 4, 8] # 28
   optical_middle_blk_num: 8
-  optical_dec_blks: [2, 4, 8]
 
   sar_width: 64 # 32
   sar_dw_expand: 2
   sar_ffn_expand: 2
   sar_enc_blks: [2, 4, 8] # 28
   sar_middle_blk_num: 8
-  sar_dec_blks: [2, 4, 8]
 
+  dec_blks: [2, 4, 8]
   model_channels: 64
 
 train:
@@ -121,7 +120,7 @@ train:
       cloud_paste: mild
 
       # dataloader
-      batch_size: 10
+      batch_size: 12
       use_shuffle: true
       weighted_sampler:
         sampler_ratio: 0.8
