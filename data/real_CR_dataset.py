@@ -34,6 +34,7 @@ class Real_CR_Dataset(Dataset):
         if self.random_crop:
             self.crop_size = opt['crop_size']
 
+        self.ssim_filter = opt['ssim_filter'] if 'ssim_filter' in opt else None
         self.weighted_sampler = opt['weighted_sampler'] if 'weighted_sampler' in opt else None
         self.cloud_paste =  opt['cloud_paste'] if 'cloud_paste' in opt else None
 
