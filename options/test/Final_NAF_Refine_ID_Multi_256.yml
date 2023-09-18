@@ -1,7 +1,7 @@
 Project: Final_Rsipac_CR
 Experiment:
   name: &name Final_NAF_Refine_ID_Multi_256
-  checkpoint:  !!python/object/apply:os.path.join ["./experiments", *name, "checkpoints", "checkpoint_best.pth"]
+  checkpoint:  !!python/object/apply:os.path.join ["./experiments", *name, "checkpoints", "checkpoint_last.pth"]
   target_size: 256
 
 infer_dir:  !!python/object/apply:os.path.join ["./infer", *name, 'pred']
@@ -32,18 +32,18 @@ network:
   sar_channel: 2
   output_channel: 3
 
-  optical_width: 64 # 64
+  optical_width: 56 # 64
   optical_dw_expand: 2
   optical_ffn_expand: 2
   optical_enc_blks: [2, 2, 4, 8] # 28
   optical_middle_blk_num: 12
   optical_dec_blks: [2, 2, 4, 8]
 
-  sar_width: 64 # 32
+  sar_width: 56 # 32
   sar_dw_expand: 2
   sar_ffn_expand: 2
   sar_enc_blks: [2, 2, 4, 8] # 28
   sar_middle_blk_num: 12
   sar_dec_blks: [2, 2, 4, 8]
 
-  model_channels: 256
+  model_channels: 128

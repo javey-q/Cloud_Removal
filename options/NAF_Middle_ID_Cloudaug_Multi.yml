@@ -1,6 +1,6 @@
 Project: Rsipac_CR
 Experiment:
-  name: &name NAF_refine_id_cloudaug_multi
+  name: &name NAF_Middle_ID_Cloudaug_Multi
   checkpoint_dir: !!python/object/apply:os.path.join ["./experiments", *name, "checkpoints"]
   result_dir: !!python/object/apply:os.path.join ["./experiments", *name, "results"]
   log_dir:
@@ -37,9 +37,9 @@ datasets:
     # dataloader
     batch_size: 6
     use_shuffle: true
-#    weighted_sampler:
-#      sampler_ratio: 0.7
-#      sampler_filter: 0.4
+    weighted_sampler:
+      sampler_ratio: 0.7
+      sampler_filter: 0.4
 #    ssim_filter: 0.7
 
   val:
@@ -102,7 +102,7 @@ train:
     ssim: ssim
   loss_weights: [1, 5]
   change_dataset:
-    epoch_11:
+    epoch_21:
       name: Real_CR
       phase: train
       root: /root/autodl-tmp/Rsipac/train_256
@@ -118,19 +118,17 @@ train:
       random_crop: true
       base_size: 256
       crop_size: 192
+      cloud_paste: mild
 
       # dataloader
       batch_size: 10
       use_shuffle: true
-      weighted_sampler:
-        sampler_ratio: 0.8
-        sampler_filter: 0.4
 
-      epoch_41:
+      epoch_51:
         name: Real_CR
         phase: train
-        root: /root/autodl-tmp/Rsipac/train_320
-        meta_info: /root/autodl-tmp/Rsipac/train_320/train_val_list_new.csv
+        root: /root/autodl-tmp/Rsipac/train_256
+        meta_info: /root/autodl-tmp/Rsipac/train_256/train_val_list_new.csv
         io_backend:
           type: disk
         repeat: 1
@@ -140,8 +138,9 @@ train:
         use_cloudmask: false
         cloud_threshold: 0.2
         random_crop: true
-        base_size: 320
-        crop_size: 256
+        base_size: 256
+        crop_size: 192
+        cloud_paste: moderate # severe
 
         # dataloader
         batch_size: 6

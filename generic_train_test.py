@@ -154,7 +154,7 @@ class Generic_train_test():
 			accelerator.wait_for_everyone()
 
 			valid_epoch_freq = self.opts['valid_epoch_freq'] if 'valid_epoch_freq' in self.opts else 1
-			if epoch==start_epoch+1 or (epoch % valid_epoch_freq == 0) or (end_epoch - epoch < 5):
+			if epoch==start_epoch+1 or (epoch % valid_epoch_freq == 0):
 				val_loss, val_ssim, val_psnr = self.validate(epoch, accelerator, run)
 				metrics_dict = {'val_loss':val_loss, 'val_ssim':val_ssim, 'val_psnr':val_psnr}
 

@@ -57,7 +57,7 @@ datasets:
     base_size: 256
 
     # dataloader
-    batch_size: 8
+    batch_size: 12
 
 #  val_2:
 use_id: true
@@ -71,20 +71,20 @@ network_g:
   optical_width: 64 # 64
   optical_dw_expand: 2
   optical_ffn_expand: 2
-  optical_enc_blks: [2, 2, 4, 8] # 28
-  optical_middle_blk_num: 12
+  optical_enc_blks: [2, 4, 8] # 28
+  optical_middle_blk_num: 8
 
   sar_width: 64 # 32
   sar_dw_expand: 2
   sar_ffn_expand: 2
-  sar_enc_blks: [2, 2, 4, 8] # 28
-  sar_middle_blk_num: 12
+  sar_enc_blks: [2, 4, 8] # 28
+  sar_middle_blk_num: 8
 
-  dec_blks: [2, 2, 4, 8]
-  model_channels: 128
+  dec_blks: [2, 4, 8]
+  model_channels: 64
 
 train:
-  epochs: 60
+  epochs: 80
   optimizer_g:
     type: AdamW
     args:
@@ -94,7 +94,7 @@ train:
   scheduler:
     type: TrueCosineAnnealingLR
     args:
-      T_max: 60  # step
+      T_max: 80  # step
       eta_min: !!float 1e-7
   loss_funs:
     pixel: l1
@@ -102,31 +102,6 @@ train:
   loss_weights: [1, 5]
   change_dataset:
     epoch_21:
-      name: Real_CR
-      phase: train
-      root: /data/train_256
-      meta_info: /data/train_256/train_val_list.csv
-      io_backend:
-        type: disk
-      repeat: 1
-
-      # image settings
-      use_id: true
-      use_cloudmask: false
-      cloud_threshold: 0.2
-      random_crop: true
-      base_size: 256
-      crop_size: 192
-
-      # dataloader
-      batch_size: 8
-      use_shuffle: true
-      weighted_sampler:
-        reversal: True
-        sampler_ratio: 0.8
-        sampler_filter: 0
-
-    epoch_41:
       name: Real_CR
       phase: train
       root: /data/train_256

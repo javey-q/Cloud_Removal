@@ -16,4 +16,3 @@ python ./scripts/data_slice.py --phase test --data_root /test \
 cp ./others/train_val_list_new.csv /data/train_256/train_val_list.csv
 cp ./others/train_val_list_new.csv /data/train_320/train_val_list.csv
 cp ./others/test_list.csv /data/testB_256
-

@@ -8,6 +8,7 @@ from datetime import datetime
 import accelerate
 from accelerate.utils import set_seed
 from accelerate.logging import get_logger
+from accelerate.utils import DistributedDataParallelKwargs
 import torch
 import torch.nn
 from torch.optim import lr_scheduler
@@ -54,7 +55,8 @@ logger = get_logger(__name__)  # log_level
 
 
 def main():
-    accelerator = accelerate.Accelerator(step_scheduler_with_optimizer=False)
+    kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
+    accelerator = accelerate.Accelerator(step_scheduler_with_optimizer=False, kwargs_handlers=[kwargs])
 
     if VISIBLE_ALL and VISIBLE_ACCELERATE_CONFIG:
         logger.info('Accelerate options details:')

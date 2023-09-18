@@ -1,6 +1,6 @@
 Project: Final_Rsipac_CR
 Experiment:
-  name: &name Final_NAF_Refine_ID_Multi_256
+  name: &name NAF_Refine_Test_Multi_256
   checkpoint_dir: !!python/object/apply:os.path.join ["./experiments", *name, "checkpoints"]
   result_dir: !!python/object/apply:os.path.join ["./experiments", *name, "results"]
   log_dir:
@@ -35,7 +35,7 @@ datasets:
     crop_size: 192
 
     # dataloader
-    batch_size: 6
+    batch_size: 8
     use_shuffle: true
     weighted_sampler:
       sampler_ratio: 0.7
@@ -62,26 +62,25 @@ datasets:
 #  val_2:
 use_id: true
 network_g:
-  name: NAF_ID_Local_CR
+  name: NAF_Test_Local_CR
   block_type: NAF
   optical_channel: 3
   sar_channel: 2
   output_channel: 3
 
-  optical_width: 56 # 64
+  optical_width: 64 # 64
   optical_dw_expand: 2
   optical_ffn_expand: 2
   optical_enc_blks: [2, 2, 4, 8] # 28
   optical_middle_blk_num: 12
-  optical_dec_blks: [2, 2, 4, 8]
 
-  sar_width: 56 # 32
+  sar_width: 64 # 32
   sar_dw_expand: 2
   sar_ffn_expand: 2
   sar_enc_blks: [2, 2, 4, 8] # 28
   sar_middle_blk_num: 12
-  sar_dec_blks: [2, 2, 4, 8]
 
+  dec_blks: [2, 2, 4, 8]
   model_channels: 128
 
 train:
@@ -120,7 +119,7 @@ train:
       crop_size: 192
 
       # dataloader
-      batch_size: 6
+      batch_size: 8
       use_shuffle: true
       weighted_sampler:
         reversal: True
@@ -144,7 +143,7 @@ train:
       crop_size: 192
 
       # dataloader
-      batch_size: 6
+      batch_size: 8
       use_shuffle: true
 
 valid_epoch_freq: 5
