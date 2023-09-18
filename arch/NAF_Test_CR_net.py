@@ -19,7 +19,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from .arch_util import LayerNorm2d, find_class_in_module
 from .local_arch import  Local_Base_CR
-from .sgfa import SGFA
+from arch.bigff import BiGFF
 
 import argparse
 from utils.parser_option import parse_option
@@ -138,11 +138,11 @@ def image_id_embedding(image_id, dim, max_period=10000, repeat_only=False, accel
     return embedding
 
 
-class NAF_ID_Net(nn.Module):
+class NAF_Test_Net(nn.Module):
 
     def __init__(self, block_type='Baseline', optical_channel=3, sar_channel=1, output_channel=3, optical_width=16, optical_middle_blk_num=1, optical_enc_blks=[],
-                 optical_dec_blks=[], optical_dw_expand=1, optical_ffn_expand=2, sar_width=16, sar_middle_blk_num=1, sar_enc_blks=[],
-                 sar_dec_blks=[], sar_dw_expand=1, sar_ffn_expand=2, model_channels=256):
+                 optical_dw_expand=1, optical_ffn_expand=2, sar_width=16, sar_middle_blk_num=1, sar_enc_blks=[],
+                 sar_dw_expand=1, sar_ffn_expand=2, dec_blks=[],  model_channels=256):
         super().__init__()
 
         self.model_channels = model_channels
@@ -170,27 +170,21 @@ class NAF_ID_Net(nn.Module):
         #                       bias=True)
 
         self.sar_encoders = nn.ModuleList()
-        self.sar_decoders = nn.ModuleList()
         self.sar_middle_blks = nn.ModuleList()
-        self.sar_ups = nn.ModuleList()
         self.sar_downs = nn.ModuleList()
-        self.sar_first_decoders = nn.ModuleList()
 
         block_name = block_type + 'Block'
-        block_cls = find_class_in_module(block_name, 'arch.NAF_ID_CR_net')
+        block_cls = find_class_in_module(block_name, 'arch.NAF_Test_CR_net')
 
         # self.sgfa_module1 = SGFA(kernel_size=1, stride=1, rate=1, softmax_scale=10.0)
         # self.sgfa_module2 = SGFA(kernel_size=3, stride=1, rate=2, softmax_scale=10.0)
         # self.sgfa_module3 = SGFA(kernel_size=3, stride=1, rate=2, softmax_scale=10.0)
 
-        self.fusion_layer = nn.Sequential(
-            nn.Conv2d(in_channels=optical_width + sar_width, out_channels=optical_width, kernel_size=3, stride=1, padding=1, groups=1,
-                              bias=True),
-            nn.GELU(),
-        )
+
         self.output_layer = nn.Conv2d(in_channels=optical_width, out_channels=output_channel, kernel_size=3, padding=1, stride=1, groups=1,
                               bias=True)
 
+        # Otical Encoder
         optical_chan = optical_width
         # (B, 64, 256, 256) ->(B, 128, 128, 128)  ->(B, 256, 64, 64) ->(B, 512, 32, 32) ->(B, 1024, 16, 16)
         for num in optical_enc_blks:
@@ -207,11 +201,36 @@ class NAF_ID_Net(nn.Module):
         self.optical_middle_first_blk = block_cls(optical_chan, optical_dw_expand, optical_ffn_expand, id_embed_dim)
         self.optical_middle_blks = \
             nn.Sequential(
-                *[block_cls(optical_chan, optical_dw_expand, optical_ffn_expand) for _ in range(optical_middle_blk_num-2)]
+                *[block_cls(optical_chan, optical_dw_expand, optical_ffn_expand) for _ in range(optical_middle_blk_num-1)]
             )
-        self.optical_middle_last_blk = block_cls(optical_chan, optical_dw_expand, optical_ffn_expand, id_embed_dim)
 
-        for num in optical_dec_blks:
+        # SAR Encoder
+        sar_chan = sar_width
+        for num in sar_enc_blks:
+            self.sar_encoders.append(
+                nn.Sequential(
+                    *[block_cls(sar_chan, sar_dw_expand, sar_ffn_expand) for _ in range(num)]
+                )
+            )
+            self.sar_downs.append(
+                nn.Conv2d(sar_chan, 2*sar_chan, 2, 2)
+            )
+            sar_chan = sar_chan * 2
+
+        self.sar_middle_first_blk = block_cls(sar_chan, sar_dw_expand, sar_ffn_expand, id_embed_dim)
+        self.sar_middle_blks = \
+            nn.Sequential(
+                *[block_cls(sar_chan, sar_dw_expand, sar_ffn_expand) for _ in range(sar_middle_blk_num-1)],
+            )
+
+        self.bigff = BiGFF(optical_chan, optical_chan)
+        self.fusion_layer = nn.Sequential(
+            nn.Conv2d(in_channels=optical_chan*2, out_channels=optical_chan, kernel_size=3, stride=1, padding=1, groups=1,
+                              bias=True),
+            nn.GELU(),
+        )
+
+        for num in dec_blks:
             self.optical_ups.append(
                 nn.Sequential(
                     nn.Conv2d(optical_chan, optical_chan * 2, 1, bias=False),
@@ -228,45 +247,8 @@ class NAF_ID_Net(nn.Module):
                     *[block_cls(optical_chan, optical_dw_expand, optical_ffn_expand) for _ in range(num-1)]
                 )
             )
-
-        sar_chan = sar_width
-        id_embed_dim = model_channels * 4
-        # sar
-        for num in sar_enc_blks:
-            self.sar_encoders.append(
-                nn.Sequential(
-                    *[block_cls(sar_chan, sar_dw_expand, sar_ffn_expand) for _ in range(num)]
-                )
-            )
-            self.sar_downs.append(
-                nn.Conv2d(sar_chan, 2*sar_chan, 2, 2)
-            )
-            sar_chan = sar_chan * 2
-
-        self.sar_middle_first_blk = block_cls(sar_chan, sar_dw_expand, sar_ffn_expand, id_embed_dim)
-        self.sar_middle_blks = \
-            nn.Sequential(
-                *[block_cls(sar_chan, sar_dw_expand, sar_ffn_expand) for _ in range(sar_middle_blk_num)],
-            )
-        self.sar_middle_last_blk = block_cls(sar_chan, sar_dw_expand, sar_ffn_expand, id_embed_dim)
-
-        for num in sar_dec_blks:
-            self.sar_ups.append(
-                nn.Sequential(
-                    nn.Conv2d(sar_chan, sar_chan * 2, 1, bias=False),
-                    nn.PixelShuffle(2)
-                )
-            )
-            sar_chan = sar_chan // 2
-            self.sar_first_decoders.append(
-                block_cls(sar_chan, sar_dw_expand, sar_ffn_expand, id_embed_dim)
-            )
-            self.sar_decoders.append(
-                nn.Sequential(
-                    *[block_cls(sar_chan, sar_dw_expand, sar_ffn_expand) for _ in range(num-1)]
-                )
-            )
         self.padder_size = 2 ** len(self.optical_encoders)
+
 
     def forward(self, optical, sar, image_id=None, accelerator=None):
     # def forward(self, input):
@@ -294,42 +276,28 @@ class NAF_ID_Net(nn.Module):
             sar_encs.append(sar_x)
             sar_x = sar_down(sar_x)
             i += 1
-            # if i==2:
-                # mask_s = nn.functional.interpolate(mask, (optical_x.shape[2], optical_x.shape[3]))
-                # optical_x = self.sgfa_module2(optical_x, sar_x)
 
         optical_x = self.optical_middle_first_blk(optical_x, emb)
         optical_x = self.optical_middle_blks(optical_x)
-        optical_x = self.optical_middle_last_blk(optical_x, emb)
 
         sar_x = self.sar_middle_first_blk(sar_x, emb)
         sar_x = self.sar_middle_blks(sar_x)
-        sar_x = self.sar_middle_last_blk(sar_x, emb)
 
-
+        fusion_x = self.bigff(optical_x, sar_x)
+        fusion_x = self.fusion_layer(fusion_x)
         # mask_s = nn.functional.interpolate(mask, (optical_x.shape[2], optical_x.shape[3]))
         # optical_x = self.sgfa_module1(optical_x, sar_x, mask_s)
         i = 0
-        for optical_first_decoder, optical_decoder, optical_up, optical_enc_skip, sar_first_decoder, sar_decoder, sar_up, sar_enc_skip in \
-                zip(self.optical_first_decoders, self.optical_decoders, self.optical_ups, optical_encs[::-1], self.sar_first_decoders, self.sar_decoders, self.sar_ups, sar_encs[::-1]):
-            optical_x = optical_up(optical_x)
-            optical_x = optical_x + optical_enc_skip
-            optical_x = optical_first_decoder(optical_x, emb)
-            optical_x = optical_decoder(optical_x)
-
-            sar_x = sar_up(sar_x)
-            sar_x = sar_x + sar_enc_skip
-            sar_x = sar_first_decoder(sar_x, emb)
-            sar_x = sar_decoder(sar_x)
+        for optical_first_decoder, optical_decoder, optical_up, optical_enc_skip in \
+                zip(self.optical_first_decoders, self.optical_decoders, self.optical_ups, optical_encs[::-1]):
+            fusion_x = optical_up(fusion_x)
+            fusion_x = fusion_x + optical_enc_skip
+            fusion_x = optical_first_decoder(fusion_x, emb)
+            fusion_x = optical_decoder(fusion_x)
             i += 1
-            # if i == 2:
-                # mask_s = nn.functional.interpolate(mask, (optical_x.shape[2], optical_x.shape[3]))
-                # optical_x = self.sgfa_module3(optical_x, sar_x)
 
-        fusion = self.fusion_layer(torch.cat((optical_x, sar_x), dim=1))
-        output = self.output_layer(fusion)
-
-        output = output + optical
+        output = self.output_layer(fusion_x)
+        # output = output + optical
         return output[:, :, :H, :W]
 
     def check_image_size(self, x):
@@ -339,10 +307,10 @@ class NAF_ID_Net(nn.Module):
         x = F.pad(x, (0, mod_pad_w, 0, mod_pad_h))
         return x
 
-class NAF_ID_Local_CR(Local_Base_CR, NAF_ID_Net):
+class NAF_Test_Local_CR(Local_Base_CR, NAF_Test_Net):
     def __init__(self, *args, train_size=(1, 3, 256, 256), sar_size=(1, 2, 256, 256), mask_size=(1, 1, 256, 256), fast_imp=False, **kwargs):
         Local_Base_CR.__init__(self)
-        NAF_ID_Net.__init__(self, *args, **kwargs)
+        NAF_Test_Net.__init__(self, *args, **kwargs)
 
         N, C, H, W = train_size
         base_size = (int(H * 1.5), int(W * 1.5))
