@@ -44,7 +44,9 @@ class Real_CR_Dataset(Dataset):
             self.cloud_dict = {}
             for cloud_name in cloud_sets:
                 cloud_path = os.path.join(cloud_dir, cloud_name)
-                self.cloud_dict['cloud_name'] = cv2.imread(cloud_path, cv2.IMREAD_UNCHANGED)
+                cloud = cv2.imread(cloud_path, cv2.IMREAD_UNCHANGED)
+                cloud = cloud.astype(np.float32) / 255.
+                self.cloud_dict[cloud_name] = cloud
 
         if 'meta_info' in self.opt and self.opt['meta_info'] is not None:
             filelist = get_filelists_from_csv(opt['meta_info'], self.phase)
@@ -78,6 +80,7 @@ class Real_CR_Dataset(Dataset):
     # TODO： augmentation for training
     def __getitem__(self, index):
         fileID = self.filelist[index % len(self.filelist)]
+        image_name = fileID[4]
         sar_VH_path = os.path.join(self.root, fileID[1], 'VH', fileID[4].replace('S2', 'S1'))
         sar_VV_path = os.path.join(self.root, fileID[1], 'VV', fileID[4].replace('S2', 'S1'))
         clear_path = os.path.join(self.root, fileID[2], fileID[4])
@@ -133,7 +136,8 @@ class Real_CR_Dataset(Dataset):
 
         # random crop
         if self.random_crop and self.base_size - self.crop_size > 0:
-            img_sar, img_clear, img_cloudy = paired_random_crop(self.opt, [img_sar, img_clear, img_cloudy], self.crop_size)
+            pos_id = int(image_name.split('.')[0].split('_')[-1])
+            img_sar, img_clear, img_cloudy = paired_random_crop(self.opt, [img_sar, img_clear, img_cloudy], self.crop_size, pos_id)
 
 
         # flip, rotation
@@ -159,7 +163,7 @@ class Real_CR_Dataset(Dataset):
         #     results['cloud_mask'] = tensor_mask
         if self.use_id:
             image_id = int(fileID[-1])
-            image_id = torch.tensor(image_id)
+            image_id = torch.tensor(image_id, dtype=torch.float32)
             results['image_id'] = image_id
 
         return results

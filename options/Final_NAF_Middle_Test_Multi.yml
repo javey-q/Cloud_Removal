@@ -32,7 +32,7 @@ datasets:
     cloud_threshold: 0.2
     random_crop: false
     base_size: 256
-    crop_size: 192
+    crop_size: 256
 
     # dataloader
     batch_size: 8
@@ -84,7 +84,7 @@ network_g:
   model_channels: 64
 
 train:
-  epochs: 80
+  epochs: 100
   optimizer_g:
     type: AdamW
     args:
@@ -94,7 +94,7 @@ train:
   scheduler:
     type: TrueCosineAnnealingLR
     args:
-      T_max: 80  # step
+      T_max: 100  # step
       eta_min: !!float 1e-7
   loss_funs:
     pixel: l1
@@ -104,8 +104,8 @@ train:
     epoch_21:
       name: Real_CR
       phase: train
-      root: /data/train_256
-      meta_info: /data/train_256/train_val_list.csv
+      root: /data/train_320
+      meta_info: /data/train_320/train_val_list.csv
       io_backend:
         type: disk
       repeat: 1
@@ -114,8 +114,8 @@ train:
       use_cloudmask: false
       cloud_threshold: 0.2
       random_crop: true
-      base_size: 256
-      crop_size: 192
+      base_size: 320
+      crop_size: 256
 
       # dataloader
       batch_size: 8

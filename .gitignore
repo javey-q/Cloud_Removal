@@ -4,3 +4,4 @@ checkpoints
 experiments
 infer
 wandb
+__pycache__

@@ -1,6 +1,6 @@
 Project: Final_Rsipac_CR
 Experiment:
-  name: &name Final_NAF_Middle_Test_Multi
+  name: &name Final_NAF_Middle_Test_Multi_Last
   checkpoint:  !!python/object/apply:os.path.join ["./experiments", *name, "checkpoints", "checkpoint_best.pth"]
   target_size: 256
 
@@ -10,8 +10,8 @@ datasets:
   test:
     name: Test_CR
     phase: test
-    root: /data/testB_256/
-    meta_info: /data/testB_256/test_list.csv
+    root: /root/autodl-tmp/Rsipac/testB/
+#    meta_info: /data/testB_256/test_list.csv
     io_backend:
       type: disk
 
@@ -19,10 +19,10 @@ datasets:
     use_id: true
     use_cloudmask: false
     random_crop: false
-    base_size: 256
+    base_size: 512
 
     # dataloader
-    batch_size: 1
+    batch_size: 10
 
 use_id: true
 network:

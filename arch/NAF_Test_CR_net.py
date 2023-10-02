@@ -135,7 +135,7 @@ def image_id_embedding(image_id, dim, max_period=10000, repeat_only=False, accel
             embedding = torch.cat([embedding, torch.zeros_like(embedding[:, :1])], dim=-1)
     else:
         embedding = repeat(image_id, 'b -> b d', d=dim)
-    return embedding
+    return embedding.to(dtype=image_id.dtype)
 
 
 class NAF_Test_Net(nn.Module):
@@ -261,6 +261,7 @@ class NAF_Test_Net(nn.Module):
         sar_x = self.sar_intro(sar)
 
         id_emb = image_id_embedding(image_id, self.model_channels, repeat_only=False, accelerator=accelerator)
+        # print(id_emb.dtype)
         emb = self.id_embed(id_emb)
 
         optical_encs = []

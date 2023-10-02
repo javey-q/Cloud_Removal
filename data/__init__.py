@@ -5,6 +5,7 @@ from torch.utils.data.sampler import *
 from .data_util import get_filelists_from_csv
 from .real_CR_dataset import Real_CR_Dataset
 from .test_CR_dataset import Test_CR_Dataset
+from .test_CR_resize_dataset import Test_CR_resize_Dataset
 # from .sen12_CR_dataset import SEN12_CR_Dataset
 
 
@@ -18,6 +19,8 @@ def getLoader(configure_dataset):
         dataset = Real_CR_Dataset(opt)
     elif opt['name'] == 'Test_CR':
         dataset = Test_CR_Dataset(opt)
+    elif opt['name'] == 'Test_CR_reisze':
+        dataset = Test_CR_resize_Dataset(opt)
     else:
         raise NotImplementedError(f"Dataset {opt['name']} not implement!")
 

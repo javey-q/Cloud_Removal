@@ -30,7 +30,7 @@ datasets:
     use_id: true
     use_cloudmask: false
     cloud_threshold: 0.2
-    random_crop: false
+    random_crop: true
     base_size: 256
     crop_size: 192
 

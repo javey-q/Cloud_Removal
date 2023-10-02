@@ -25,7 +25,7 @@ if __name__ == '__main__':
 
     target_size = 512
     slice_size = 256
-    pos_xy = [(0, 0), (slice_size, 0), (0, slice_size), (slice_size, slice_size)]
+    pos_yx = [(0, 0), (0, slice_size), (slice_size, 0), (slice_size, slice_size)]
 
     image_sets = [i for i in os.listdir(refer_path) if i.endswith(".png")]
     print(len(image_sets))
@@ -35,7 +35,7 @@ if __name__ == '__main__':
             infer_name = f'{image_name.split(".")[0]}_{i}.png'
             assert os.path.isfile(os.path.join(infer_path, infer_name)), f'ERROR: --image {infer_name} does not exist'
             infer_image = cv2.imread(os.path.join(infer_path, infer_name))
-            topleft_x, topleft_y = pos_xy[i]
+            topleft_y, topleft_x = pos_yx[i]
             result_png[topleft_y:topleft_y+slice_size,
                     topleft_x:topleft_x+slice_size,:] = infer_image
 

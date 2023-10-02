@@ -57,13 +57,13 @@ def random_cloud_paste(original_image, cloud_dict, paste_level):
             for c in range(0, 3):
                 result_image[y_position:y_position + cloud_height, x_position:x_position + cloud_width, c] = \
                     result_image[y_position:y_position + cloud_height, x_position:x_position + cloud_width, c] * \
-                    (1 - alpha_channel / 255.0) + \
-                    cloud_image[:, :, c] * (alpha_channel / 255.0)
+                    (1 - alpha_channel) + \
+                    cloud_image[:, :, c] * (alpha_channel)
         return result_image
 
 
 
-def paired_random_crop(opt, imgs, patch_size, flows=None):
+def paired_random_crop(opt, imgs, patch_size, pos_id, flows=None):
     """Paired random crop.
 
     It crops lists of lq and gt images with corresponding locations.
@@ -89,12 +89,20 @@ def paired_random_crop(opt, imgs, patch_size, flows=None):
     h, w, _ = imgs[0].shape
 
     # randomly choose top and left coordinates
-    if opt['phase'] == 'train':
+    if opt['phase'] == 'train' and random.random() > 0.5:
         y = random.randint(0, np.maximum(0, h - patch_size))
         x = random.randint(0, np.maximum(0, w - patch_size))
     else:
-        y = np.maximum(0, h - patch_size) // 2
-        x = np.maximum(0, w - patch_size) // 2
+        if pos_id == 0:
+            y, x = 0, 0
+        elif pos_id == 1:
+            y, x = 0, 64
+        elif pos_id == 2:
+            y, x = 64, 0
+        elif pos_id == 3:
+            y, x = 64, 64
+        # y = np.maximum(0, h - patch_size) // 2
+        # x = np.maximum(0, w - patch_size) // 2
 
     # crop patch
     imgs = [

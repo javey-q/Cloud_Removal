@@ -12,7 +12,7 @@ import argparse
 from utils.parser_option import parse_option
 from utils.misc import scandir
 
-class Test_CR_Dataset(Dataset):
+class Test_CR_resize_Dataset(Dataset):
     def __init__(self, opt):
         super().__init__()
         self.opt = opt
@@ -72,8 +72,8 @@ class Test_CR_Dataset(Dataset):
             img_mask = imfrombytes(mask_bytes, flag='grayscale', float32=True)
 
         # Todo：augmentation for training
-        # img_cloudy = cv2.resize(img_cloudy, (self.base_size, self.base_size))
-        # img_sar = cv2.resize(img_sar, (self.base_size, self.base_size))
+        img_cloudy = cv2.resize(img_cloudy, (self.base_size, self.base_size))
+        img_sar = cv2.resize(img_sar, (self.base_size, self.base_size))
 
         img_sar, img_cloudy = img2tensor([img_sar, img_cloudy],
                                     bgr2rgb=True,
@@ -107,26 +107,26 @@ def parse_args():
     opt = parse_option(args.opt)
     return opt
 
-if __name__ == "__main__":
-    opt = parse_args()
-    opt_test = opt['datasets']['test']
-    opt_test['root'] = r'D:\Dataset\Rsipac\test_256'
-
-    dataset = Test_CR_Dataset(opt_test)
-    print(len(dataset))
-    dataloader = torch.utils.data.DataLoader(dataset=dataset, batch_size=2, shuffle=False)
-    _iter = 0
-    for results in dataloader:
-        cloudy_data = results['opt_cloudy']
-        SAR = results['sar']
-        if opt_test['use_cloudmask']:
-            cloud_mask = results['cloud_mask']
-        file_name = results['file_name']
-        print(_iter, file_name)
-        print('cloudy:', cloudy_data.shape)
-        print('sar:', SAR.shape)
-        if opt_test['use_cloudmask']:
-            print('cloud_mask:', cloud_mask.shape)
-        _iter += 1
-        if _iter>2:
-            break
+# if __name__ == "__main__":
+#     opt = parse_args()
+#     opt_test = opt['datasets']['test']
+#     opt_test['root'] = r'D:\Dataset\Rsipac\test_256'
+#
+#     dataset = Test_CR_Dataset(opt_test)
+#     print(len(dataset))
+#     dataloader = torch.utils.data.DataLoader(dataset=dataset, batch_size=2, shuffle=False)
+#     _iter = 0
+#     for results in dataloader:
+#         cloudy_data = results['opt_cloudy']
+#         SAR = results['sar']
+#         if opt_test['use_cloudmask']:
+#             cloud_mask = results['cloud_mask']
+#         file_name = results['file_name']
+#         print(_iter, file_name)
+#         print('cloudy:', cloudy_data.shape)
+#         print('sar:', SAR.shape)
+#         if opt_test['use_cloudmask']:
+#             print('cloud_mask:', cloud_mask.shape)
+#         _iter += 1
+#         if _iter>2:
+#             break

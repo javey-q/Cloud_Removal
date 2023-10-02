@@ -46,7 +46,6 @@ class Generic_train_test():
 		self.use_id = opts['use_id'] if 'use_id' in opts else False
 		self.change_dataset = opts['train']['change_dataset'] if 'change_dataset' in opts['train'] else None
 
-
 	def decode_input(self, data):
 		return data
 		# raise NotImplementedError()

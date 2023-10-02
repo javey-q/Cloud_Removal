@@ -78,7 +78,7 @@ def tensor2img(tensor, rgb2bgr=True, out_type=np.uint8, min_max=(0, 1)):
         if n_dim == 4:
             img_np = make_grid(
                 _tensor, nrow=int(math.sqrt(_tensor.size(0))),
-                normalize=False).numpy()
+                normalize=False, padding=0).numpy()
             img_np = img_np.transpose(1, 2, 0)
             if rgb2bgr:
                 img_np = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
